@@ -1,0 +1,2015 @@
+<!DOCTYPE html>
+<html lang="en-GB" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ontograph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600&display=swap" rel="stylesheet">
+<script>try { var t = localStorage.getItem("ontograph.theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<style>
+/* Layout idea: the 3D plasma cloud is the page. A HUD floats over it: identity top left, meaning on the right, the voice console along the bottom.
+   Colours are the night and day schemes of the atlas project (ion cyan, flux magenta on a deep void, or on pale slate by day). */
+:root {
+  color-scheme: dark;
+  --void: #060A12; --deck: #0A111D; --deck2: #0F1929; --line: #1A2940; --line2: #294466;
+  --ion: #7DEBFF; --ion2: #38C6EC; --ion-dim: #1D6880; --ion-ghost: rgba(125,235,255,.08);
+  --text: #E4EEF7; --muted: #8597AC; --faint: #4E6178;
+  --flux: #FF3DA0; --flux-deep: #D40E8C; --flux-ghost: rgba(255,61,160,.12); --flux-soft: #FFB4DA; --flux-mid: #FF8AC8;
+  --warn: #FFB347; --ok: #5BE3B0; --violet: #C7A9FF;
+  --acct: #FFD166; --acct-ghost: rgba(255,209,102,.12);
+  --hud-bg: rgba(10,17,29,.86); --panel-tile: rgba(15,25,41,.6); --note-ink: #C6D6E4;
+  --danger: #FF6B7A; --on-ion: #04121A; --field: rgba(125,235,255,.045);
+  --glow: 0 0 18px rgba(56,198,236,.18); --focus-ring: rgba(56,198,236,.18);
+  --shadow: 0 18px 44px rgba(0,0,0,.5); --scrim: rgba(3,6,12,.6);
+  --f-display: "Chakra Petch", "Bahnschrift", "Arial Narrow", Arial, sans-serif;
+  --f-body: "Barlow", "Segoe UI", Arial, sans-serif;
+  --f-cond: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
+  --f-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --dock-h: 150px; --isa: #A9CCE3;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --void: #EDF1F5; --deck: #FFFFFF; --deck2: #E8EDF3; --line: #D3DCE6; --line2: #B4C2D1;
+  --ion: #0A7AA0; --ion2: #168FB8; --ion-dim: #7FAFC4; --ion-ghost: rgba(10,122,160,.08);
+  --text: #0F1E2E; --muted: #526478; --faint: #76869A;
+  --flux: #C4157C; --flux-deep: #A50E67; --flux-ghost: rgba(196,21,124,.07); --flux-soft: #A50E67; --flux-mid: #B8357A;
+  --warn: #A35C00; --ok: #11774F; --violet: #6A49BE;
+  --acct: #9A6A00; --acct-ghost: rgba(154,106,0,.08);
+  --hud-bg: rgba(255,255,255,.92); --panel-tile: #FFFFFF; --note-ink: #2B3D51;
+  --danger: #B3263C; --on-ion: #FFFFFF; --field: rgba(10,122,160,.045);
+  --glow: 0 0 14px rgba(10,122,160,.12); --focus-ring: rgba(10,122,160,.16);
+  --shadow: 0 10px 30px rgba(16,32,48,.12); --scrim: rgba(220,228,236,.6); --isa: #5E7389;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--void); color: var(--text); font: 15px/1.45 var(--f-body); -webkit-font-smoothing: antialiased; overflow: hidden; }
+#graph { position: fixed; inset: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--ion); outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+/* HUD panel: glass plate with two corner brackets */
+.card { position: relative; background: var(--hud-bg); border: 1px solid var(--line2); border-radius: 6px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 14px 16px; box-shadow: var(--shadow); }
+.card::before, .card::after { content: ""; position: absolute; width: 13px; height: 13px; border: 1px solid var(--ion2); pointer-events: none; }
+.card::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; border-top-left-radius: 6px; }
+.card::after { bottom: -1px; right: -1px; border-left: 0; border-top: 0; border-bottom-right-radius: 6px; }
+.sub { font: 600 11px/1.2 var(--f-display); color: var(--muted); text-transform: uppercase; letter-spacing: .14em; margin: 0; }
+
+/* Identity, top left */
+.brandbar { position: fixed; top: 16px; left: 16px; width: 300px; z-index: 2; }
+.brand { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.brand h1 { margin: 0; font: 700 19px/1.1 var(--f-display); letter-spacing: .16em; text-transform: uppercase; white-space: nowrap; }
+.brand h1 span { color: var(--ion); }
+.brand p { margin: 3px 0 0; font-size: 12.5px; color: var(--muted); }
+.iconbtn { flex: none; width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--line2); border-radius: 4px; background: var(--field); }
+.iconbtn:hover { border-color: var(--ion2); box-shadow: var(--glow); }
+.iconbtn svg { width: 18px; height: 18px; fill: none; stroke: var(--ion); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+:root[data-theme="light"] .iconbtn .sun, :root:not([data-theme="light"]) .iconbtn .moon { display: none; }
+.mapname { display: block; width: 100%; margin-top: 10px; font-size: 15px; font-weight: 600; background: transparent; border: 1px solid transparent; border-radius: 4px; padding: 5px 8px; margin-left: -8px; width: calc(100% + 16px); }
+.mapname:hover, .mapname:focus { border-color: var(--line2); background: var(--field); }
+.maprow { display: flex; gap: 8px; margin-top: 6px; align-items: center; }
+.maprow select { flex: 1; min-width: 0; }
+select { background: var(--deck); border: 1px solid var(--line2); border-radius: 4px; padding: 5px 6px; font-size: 13px; }
+.filerow { display: flex; gap: 6px; margin-top: 8px; }
+.filerow .btn { flex: 1 1 0; min-width: 0; padding: 6px 0; text-align: center; letter-spacing: .05em; }
+.savestate { font: 500 12px var(--f-cond); letter-spacing: .04em; color: var(--muted); margin-top: 7px; display: flex; justify-content: space-between; gap: 8px; }
+.savestate span:last-child { color: var(--ion); }
+
+/* Buttons and fields */
+.btn { background: var(--field); border: 1px solid var(--line2); border-radius: 4px; padding: 8px 13px; white-space: nowrap; font: 600 12px/1.2 var(--f-display); letter-spacing: .08em; text-transform: uppercase; }
+.btn:hover:not(:disabled) { border-color: var(--ion2); box-shadow: var(--glow); }
+.btn.primary { background: var(--ion); color: var(--on-ion); border-color: var(--ion); }
+.btn.small { padding: 6px 10px; font-size: 11px; }
+.btn.danger:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); box-shadow: none; }
+.btn:disabled { opacity: .45; cursor: default; }
+input[type="text"], input:not([type]) { background: var(--deck); border: 1px solid var(--line2); border-radius: 4px; padding: 8px 11px; }
+input:not([type="checkbox"]):focus { outline: none; border-color: var(--ion2); box-shadow: 0 0 0 3px var(--focus-ring), var(--glow); }
+input::placeholder { color: var(--faint); }
+.notice { font-size: 13px; color: var(--muted); border: 1px dashed var(--line2); border-radius: 4px; padding: 6px 10px; }
+.notice.warn { color: var(--warn); border-color: var(--warn); }
+.kbd { font: 600 11px var(--f-display); color: var(--muted); border: 1px solid var(--line2); border-radius: 3px; padding: 0 5px; }
+
+/* Voice console, along the bottom */
+.dock { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 28px; align-items: center; padding: 12px 18px; }
+.dock-left { align-self: stretch; display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+.transcript { flex: 1; min-height: 0; max-height: 92px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; }
+.utt { border-left: 2px solid var(--line2); padding: 1px 0 1px 10px; }
+.utt p { margin: 0; font-size: 14px; }
+.utt .meta { font: 500 12px var(--f-cond); letter-spacing: .04em; color: var(--muted); margin-top: 1px; }
+.utt.work { border-color: var(--acct); }
+.utt.done { border-color: var(--ok); }
+.utt.fail { border-color: var(--danger); }
+.utt.fail .meta { color: var(--danger); }
+.partial { color: var(--muted); font-style: italic; font-size: 14px; }
+.empty { color: var(--muted); font-size: 13.5px; }
+.empty q { color: var(--note-ink); quotes: "\201C" "\201D"; }
+.notice:not([hidden]) + .transcript .empty { display: none; }
+
+.dock-mid { display: flex; flex-direction: column; align-items: center; gap: 12px; min-width: 250px; max-width: 340px; text-align: center; }
+.micwrap { display: flex; align-items: center; gap: 22px; padding-top: 9px; }
+.mic { position: relative; width: 66px; height: 66px; border-radius: 50%; border: 1px solid var(--ion2); background: radial-gradient(circle at 50% 36%, var(--ion-ghost), transparent 72%), var(--deck); display: grid; place-items: center; box-shadow: 0 0 0 4px var(--ion-ghost), var(--glow); transition: transform .15s ease; }
+.mic:hover:not(:disabled) { transform: scale(1.05); }
+.mic svg { width: 26px; height: 26px; fill: var(--ion); }
+.mic::before, .mic::after { content: ""; position: absolute; inset: -10px; border-radius: 50%; pointer-events: none; }
+.mic::before { border: 1px dashed var(--ion-dim); animation: spin 24s linear infinite; }
+.mic::after { border: 2px solid transparent; border-top-color: var(--flux); border-bottom-color: var(--flux); opacity: 0; }
+.mic.on { border-color: var(--flux); box-shadow: 0 0 0 4px var(--flux-ghost), 0 0 26px var(--flux-ghost); }
+.mic.on svg { fill: var(--flux); }
+.mic.on::after { opacity: 1; animation: spin 1.5s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.eq { display: flex; align-items: center; gap: 4px; height: 34px; }
+.eq i { width: 3px; height: 5px; border-radius: 2px; background: var(--ion-dim); }
+.dock.listening .eq i { background: var(--flux); animation: eq .9s ease-in-out infinite; }
+.eq i:nth-child(1) { animation-delay: -.1s; } .eq i:nth-child(2) { animation-delay: -.45s; } .eq i:nth-child(3) { animation-delay: -.25s; } .eq i:nth-child(4) { animation-delay: -.7s; } .eq i:nth-child(5) { animation-delay: -.55s; }
+@keyframes eq { 0%, 100% { height: 5px; } 50% { height: 30px; } }
+.micstate { line-height: 1.25; }
+.micstate b { display: block; font: 600 13px var(--f-display); letter-spacing: .14em; text-transform: uppercase; }
+.dock.listening .micstate b { color: var(--flux); }
+.micstate > span { color: var(--muted); font-size: 13px; }
+
+.dock-right { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.typebar { display: flex; gap: 8px; }
+.typebar input { flex: 1; min-width: 0; }
+.tools { display: flex; align-items: center; justify-content: space-between; gap: 8px 14px; flex-wrap: wrap; }
+.mode { display: flex; gap: 8px; align-items: center; min-width: 0; max-width: 100%; font: 600 11px var(--f-display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.mode select { flex: 1; min-width: 0; font: 500 13px var(--f-body); letter-spacing: 0; text-transform: none; color: var(--text); padding: 4px 6px; }
+.toolbar { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Right rail */
+.rail { position: fixed; top: 16px; right: 16px; bottom: calc(var(--dock-h) + 28px); width: 330px; display: flex; flex-direction: column; gap: 12px; pointer-events: none; z-index: 2; }
+.rail > * { pointer-events: auto; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--field); border: 1px solid var(--line2); border-radius: 4px; padding: 3px; }
+.seg button { border: 0; background: transparent; border-radius: 3px; padding: 7px 8px; color: var(--muted); font: 600 11.5px var(--f-display); letter-spacing: .1em; text-transform: uppercase; }
+.seg button[aria-pressed="true"] { background: var(--ion-ghost); color: var(--ion); box-shadow: inset 0 0 0 1px var(--ion-dim); }
+.stats { display: flex; gap: 22px; margin-top: 12px; }
+.stat b { display: block; font: 600 26px/1 var(--f-display); color: var(--ion); font-variant-numeric: tabular-nums; }
+.stat span { font: 500 12px var(--f-cond); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font: 500 12.5px var(--f-cond); letter-spacing: .04em; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; }
+.legend .lc i, .legend .li i { width: 18px; height: 11px; border-radius: 50%; border: 1.5px solid var(--ion); background: var(--ion-ghost); box-shadow: 0 0 6px var(--ion-ghost); }
+.legend .lc i { outline: 1px solid var(--ion-dim); outline-offset: 2px; }
+.legend .li i { border-color: var(--flux-mid); background: var(--flux-ghost); width: 14px; height: 9px; }
+.legend .lt i, .legend .lp i { width: 18px; height: 4px; border-radius: 2px; }
+.legend .lt i { background: var(--isa); }
+.legend .lp i { background: var(--ion2); }
+
+.detailcard { flex: 1; min-height: 0; display: flex; padding: 0; }
+.detail { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; }
+.detail h2 { font: 600 22px/1.15 var(--f-display); letter-spacing: .02em; margin: 0; text-wrap: balance; overflow-wrap: anywhere; }
+.chip { display: inline-block; font: 600 10.5px var(--f-display); letter-spacing: .12em; text-transform: uppercase; padding: 2px 8px; border-radius: 3px; border: 1px solid currentColor; }
+.chip.class { color: var(--ion); }
+.chip.individual { color: var(--flux-mid); }
+.chip.pend { color: var(--acct); border-style: dashed; }
+.detail .desc { color: var(--note-ink); margin: 0; }
+.rels { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.rels li { font-size: 14px; }
+.rels .verb { color: var(--ion); font: 500 13px var(--f-cond); letter-spacing: .04em; }
+.rels button { background: none; border: 0; padding: 0; text-align: left; color: var(--text); text-decoration: underline; text-decoration-color: var(--line2); text-underline-offset: 3px; }
+.rels button:hover { color: var(--ion); text-decoration-color: var(--ion); }
+.props { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 14px; margin: 0; }
+.props dt { color: var(--muted); font: 500 13px var(--f-cond); letter-spacing: .04em; }
+.props dd { margin: 0; overflow-wrap: anywhere; }
+.edit { display: flex; gap: 6px; flex-wrap: wrap; }
+.edit input { flex: 1 1 140px; min-width: 0; padding: 5px 8px; }
+pre.ttl { margin: 0; font: 11.5px/1.5 var(--f-mono); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--note-ink); }
+pre.ttl .k { color: var(--ion); }
+pre.ttl .s { color: var(--flux-mid); }
+.exports { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Approval queue, top right */
+#approvals { position: fixed; top: 16px; right: 16px; width: 330px; z-index: 4; display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow-y: auto; padding: 1px; }
+.aphead { margin: 0; font: 600 11px var(--f-display); color: var(--acct); text-transform: uppercase; letter-spacing: .12em; display: flex; justify-content: space-between; gap: 8px; padding: 0 2px; }
+.aphead span { color: var(--muted); font: 500 12px var(--f-cond); text-transform: none; letter-spacing: .03em; }
+.proposal { border-color: var(--line2); padding: 12px 14px; }
+.proposal::before, .proposal::after { border-color: var(--acct); }
+.proposal.first { border-color: var(--acct); box-shadow: 0 0 0 3px var(--acct-ghost), var(--shadow); }
+.proposal .from { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-style: italic; overflow-wrap: anywhere; }
+.proposal .items { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.proposal li { display: flex; align-items: flex-start; gap: 6px; }
+.proposal label { flex: 1; display: flex; gap: 8px; align-items: flex-start; cursor: pointer; font-size: 14px; }
+.proposal input { accent-color: var(--ion2); margin: 4px 0 0; flex: none; }
+.proposal .mk { font: 700 13px/1.5 var(--f-mono); width: 10px; flex: none; }
+.proposal .mk.add { color: var(--ok); } .proposal .mk.del { color: var(--danger); } .proposal .mk.edit { color: var(--acct); }
+.proposal label:has(input:not(:checked)) .tx { color: var(--muted); text-decoration: line-through; }
+.proposal .look { background: none; border: 0; color: var(--muted); padding: 0 2px; font-size: 14px; }
+.proposal .look:hover { color: var(--ion); }
+.apbtns { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* Change log pills, above the console */
+.log { position: fixed; left: calc(50% - 173px); bottom: calc(var(--dock-h) + 30px); transform: translateX(-50%); z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; width: min(560px, calc(100% - 32px)); }
+.log div { font: 500 13px var(--f-cond); letter-spacing: .04em; background: var(--hud-bg); border: 1px solid var(--line2); border-radius: 3px; padding: 3px 12px; color: var(--note-ink); animation: fade 6s forwards; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log div.add::before { content: "+ "; color: var(--ok); }
+.log div.del::before { content: "\2212  "; color: var(--danger); }
+.log div.note { color: var(--ion); }
+@keyframes fade { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }
+
+.scene-tooltip, .float-tooltip-kap { font: 13px/1.4 var(--f-body) !important; color: var(--text) !important; background: var(--hud-bg) !important; border: 1px solid var(--line2); border-radius: 4px !important; padding: 6px 10px !important; max-width: 260px; }
+
+.dialog { position: fixed; inset: 0; display: none; place-items: center; background: var(--scrim); z-index: 5; }
+.dialog.open { display: grid; }
+.dialog .card { width: min(360px, calc(100% - 32px)); }
+.dialog p { margin: 0 0 12px; }
+.dialog .row { display: flex; gap: 8px; justify-content: flex-end; }
+#dialog { z-index: 6; }
+.dialog .card.io { width: min(540px, calc(100% - 32px)); display: flex; flex-direction: column; gap: 12px; }
+.dialog .io p { margin: 0; }
+.io h2 { margin: 0; font: 600 18px/1.2 var(--f-display); letter-spacing: .08em; text-transform: uppercase; }
+.io .hint { color: var(--muted); font-size: 14px; }
+.fmt { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 14px; align-items: center; border: 1px solid var(--line2); border-radius: 4px; padding: 10px 12px; background: var(--field); }
+.fmt b { font: 600 12.5px var(--f-display); letter-spacing: .1em; text-transform: uppercase; color: var(--ion); }
+.fmt span { grid-column: 1; color: var(--note-ink); font-size: 14px; }
+.fmt .acts { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 6px; }
+.drop { border: 1px dashed var(--line2); border-radius: 4px; padding: 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.drop.over { border-color: var(--ion); background: var(--ion-ghost); }
+.io textarea { display: block; width: 100%; min-height: 104px; resize: vertical; background: var(--deck); border: 1px solid var(--line2); border-radius: 4px; padding: 8px 10px; font: 12px/1.5 var(--f-mono); }
+.io textarea:focus { outline: none; border-color: var(--ion2); box-shadow: 0 0 0 3px var(--focus-ring); }
+.io .err { color: var(--danger); font-size: 14px; }
+
+.toggle-details { display: none; }
+@media (max-width: 1180px) and (min-width: 861px) {
+  .dock { gap: 18px; }
+  .dock-mid { min-width: 200px; }
+  .eq { display: none; }
+}
+@media (max-width: 860px) {
+  .brandbar { left: 12px; right: 12px; top: 12px; width: auto; padding: 10px 14px; }
+  .brand p, .savestate { display: none; }
+  .fmt { grid-template-columns: 1fr; }
+  .fmt .acts { grid-column: 1; grid-row: auto; margin-top: 6px; }
+  .mapname { margin-top: 4px; }
+  .dock { left: 12px; right: 12px; bottom: 12px; grid-template-columns: 1fr; gap: 10px; padding: 12px 14px; }
+  .dock-mid { order: 1; flex-direction: row; justify-content: flex-start; text-align: left; min-width: 0; gap: 20px; padding-left: 10px; }
+  .micwrap { padding: 8px 0; }
+  .eq { display: none; }
+  .mic { width: 56px; height: 56px; }
+  .dock-right { order: 2; }
+  .dock-left { order: 3; }
+  .transcript { max-height: 58px; }
+  .dock-left .sub { display: none; }
+  .rail { display: none; top: 12px; left: 12px; right: 12px; width: auto; bottom: calc(var(--dock-h) + 20px); }
+  .rail.open { display: flex; z-index: 3; }
+  .toggle-details { display: inline-block; }
+  .log { left: 50%; bottom: calc(var(--dock-h) + 22px); }
+  #approvals { left: 12px; right: 12px; top: 12px; width: auto; max-height: 40vh; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mic::before, .mic.on::after, .dock.listening .eq i { animation: none; }
+  .dock.listening .eq i { height: 18px; }
+  .log div { animation: none; }
+}
+</style>
+</head>
+<body>
+<div id="graph" aria-label="3D ontology view. Drag to rotate, scroll to zoom, click a node to inspect it."></div>
+
+<header class="card brandbar" id="brandBar">
+  <div class="brand">
+    <div><h1>Onto<span>graph</span></h1><p>Speak it into structure</p></div>
+    <button class="iconbtn" id="themeBtn" aria-label="Switch to light mode" title="Switch to light mode">
+      <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.2A8.2 8.2 0 0 1 9.8 4a8.2 8.2 0 1 0 10.2 10.2Z"/></svg>
+    </button>
+  </div>
+  <input class="mapname" id="mapName" aria-label="Ontology name" maxlength="80">
+  <div class="maprow">
+    <select id="mapSelect" aria-label="Open a saved ontology"></select>
+    <button class="btn small" id="newMap" title="Start a blank ontology">New</button>
+  </div>
+  <div class="filerow">
+    <button class="btn small" id="saveBtn" title="Save this ontology now (Ctrl+S)">Save</button>
+    <button class="btn small" id="exportBtn" title="Download or copy this ontology">Export</button>
+    <button class="btn small" id="importBtn" title="Open an exported ontology file">Import</button>
+    <button class="btn small danger" id="deleteBtn" title="Delete this saved ontology" disabled>Delete</button>
+  </div>
+  <input type="file" id="importFile" accept=".json,.txt,.ttl,application/json,text/plain,text/turtle" hidden>
+  <div class="savestate"><span id="saveState">Example, not saved</span><span id="engineState"></span></div>
+</header>
+
+<div id="approvals" aria-live="polite" hidden></div>
+
+<aside class="rail right" id="rightRail">
+  <section class="card">
+    <div class="seg" role="group" aria-label="View">
+      <button id="viewConcept" aria-pressed="true">Concept map</button>
+      <button id="viewFormal" aria-pressed="false">Formal ontology</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="nClasses">0</b><span>classes</span></div>
+      <div class="stat"><b id="nIndiv">0</b><span>individuals</span></div>
+      <div class="stat"><b id="nRels">0</b><span>relations</span></div>
+    </div>
+    <div class="legend">
+      <span class="lc"><i></i>class</span><span class="li"><i></i>individual</span><span class="lt"><i></i>is a</span><span class="lp"><i></i>relation</span>
+    </div>
+  </section>
+  <section class="card detailcard"><div class="detail" id="detail"></div></section>
+</aside>
+
+<div class="log" id="log" aria-live="polite"></div>
+
+<footer class="card dock" id="dock" aria-label="Voice console">
+  <div class="dock-left">
+    <p class="sub">Transcript</p>
+    <div class="notice" id="voiceNotice" hidden></div>
+    <div class="transcript" id="transcript" aria-live="polite">
+      <div class="empty" id="emptyHint">Describe anything and Claude proposes additions; you approve or reject each one at the top right. Try <q>A hospital has wards. Each ward has nurses.</q> Then <q>approve</q>, <q>undo</q> or <q>focus on wards</q>.</div>
+    </div>
+  </div>
+
+  <div class="dock-mid">
+    <div class="micwrap">
+      <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      <button class="mic" id="mic" aria-pressed="false" aria-label="Start listening">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 0 0-7 0v6A3.5 3.5 0 0 0 12 15Zm6-3.5a1 1 0 1 0-2 0 4 4 0 0 1-8 0 1 1 0 1 0-2 0 6 6 0 0 0 5 5.91V20H9a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2h-2v-2.59a6 6 0 0 0 5-5.91Z"/></svg>
+      </button>
+      <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+    </div>
+    <div class="micstate" id="micState"><b>Press to speak</b><span>or press <span class="kbd">Space</span></span></div>
+  </div>
+
+  <div class="dock-right">
+    <form class="typebar" id="typeForm">
+      <input id="typeInput" type="text" placeholder="Or type a sentence" autocomplete="off" aria-label="Type a sentence to add to the ontology">
+      <button class="btn primary" type="submit">Add</button>
+    </form>
+    <div class="tools">
+      <label class="mode" for="speed">Structuring
+        <select id="speed"><option value="quick">Fast, live</option><option value="default">Careful, slower</option></select>
+      </label>
+      <nav class="toolbar" aria-label="Ontology actions">
+        <button class="btn small" id="undoBtn" disabled>Undo</button>
+        <button class="btn small" id="fitBtn">Fit view</button>
+        <button class="btn small" id="refineBtn" title="Ask Claude to merge duplicates and fix structure">Tidy up</button>
+        <button class="btn small danger" id="clearBtn">Clear</button>
+        <button class="btn small toggle-details" id="detailsBtn">Details</button>
+      </nav>
+    </div>
+  </div>
+</footer>
+
+<div class="dialog" id="ioDialog" role="dialog" aria-modal="true" aria-labelledby="ioTitle">
+  <div class="card io" id="ioCard"></div>
+</div>
+
+<div class="dialog" id="dialog" role="dialog" aria-modal="true" aria-labelledby="dialogText">
+  <div class="card"><p id="dialogText"></p><div class="row"><button class="btn small" id="dialogNo">Cancel</button><button class="btn small primary" id="dialogYes">OK</button></div></div>
+</div>
+
+<script src="vendor.js"></script>
+<script>
+(() => {
+"use strict";
+const { ForceGraph3D, THREE, SpriteText, UnrealBloomPass, OutputPass } = window.OntoVendor;
+const $ = (id) => document.getElementById(id);
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---------------- Model ---------------- */
+const EXAMPLE = () => ({
+  name: "Example: hospital trust",
+  entities: {
+    organisation: { id: "organisation", label: "Organisation", kind: "class" },
+    nhs_trust: { id: "nhs_trust", label: "NHS Trust", kind: "class", description: "A public body that runs hospitals and services." },
+    supplier: { id: "supplier", label: "Supplier", kind: "class" },
+    hospital: { id: "hospital", label: "Hospital", kind: "class" },
+    department: { id: "department", label: "Department", kind: "class" },
+    clinical_system: { id: "clinical_system", label: "Clinical System", kind: "class" },
+    epr: { id: "epr", label: "Electronic Patient Record", kind: "class" },
+    northfield_trust: { id: "northfield_trust", label: "Northfield NHS Trust", kind: "individual", description: "Fictional example trust." },
+    northfield_general: { id: "northfield_general", label: "Northfield General", kind: "individual" },
+    emergency_dept: { id: "emergency_dept", label: "Emergency Department", kind: "individual" }
+  },
+  relations: [
+    R("nhs_trust", "subClassOf", "organisation"), R("supplier", "subClassOf", "organisation"),
+    R("epr", "subClassOf", "clinical_system"),
+    R("nhs_trust", "property", "hospital", "operates"), R("hospital", "property", "department", "has"),
+    R("department", "property", "clinical_system", "uses"), R("supplier", "property", "clinical_system", "provides"),
+    R("northfield_trust", "instanceOf", "nhs_trust"), R("northfield_general", "instanceOf", "hospital"),
+    R("emergency_dept", "instanceOf", "department"),
+    R("northfield_trust", "property", "northfield_general", "operates"), R("northfield_general", "property", "emergency_dept", "has")
+  ]
+});
+function R(source, type, target, label) { return { id: relId(source, type, target, label), source, target, type, label: type === "property" ? (label || "related to") : "" }; }
+function relId(s, t, o, l) { return [s, t, t === "property" ? (l || "") : "", o].join("|"); }
+const blank = () => ({ name: "Untitled ontology", entities: {}, relations: [] });
+
+let model = EXAMPLE();
+let isExample = true;
+let undoStack = [];
+const snapshot = () => JSON.stringify({ name: model.name, entities: model.entities, relations: model.relations });
+
+const slugRaw = (s) => String(s || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9\s_-]/g, "").trim().replace(/[\s-]+/g, "_").replace(/_+/g, "_").slice(0, 48);
+const slug = (s) => { const v = slugRaw(s); return v in Object.prototype ? v + "_" : v; }; /* an id such as "constructor" must not collide with a built-in object key */
+const humanize = (id) => id.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const clean = (s, n = 120) => String(s ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+
+function ensureEntity(id, changes, kindHint, M = model) {
+  if (!M.entities[id]) {
+    M.entities[id] = { id, label: humanize(id), kind: kindHint || "class" };
+    changes.push({ t: "add", s: M.entities[id].label });
+  }
+  return M.entities[id];
+}
+
+function applyOps(ops, M = model) {
+  const changes = [];
+  const E = M.entities;
+  const find = (raw) => { const id = slug(raw); if (E[id]) return id; const byLabel = Object.values(E).find((e) => slug(e.label) === id); return byLabel ? byLabel.id : id; };
+  for (const op of Array.isArray(ops) ? ops : []) {
+    if (!op || typeof op !== "object") continue;
+    const kind = op.kind === "individual" ? "individual" : op.kind === "class" ? "class" : undefined;
+    switch (op.op) {
+      case "add_entity": case "update_entity": {
+        const id = find(op.id || op.label); if (!id) break;
+        const existed = !!E[id];
+        const e = existed ? E[id] : (E[id] = { id, label: clean(op.label, 60) || humanize(id), kind: kind || "class" });
+        if (existed && op.label && clean(op.label, 60) !== e.label) { changes.push({ t: "edit", s: `${e.label} renamed ${clean(op.label, 60)}` }); e.label = clean(op.label, 60); }
+        if (existed && kind && kind !== e.kind) { e.kind = kind; changes.push({ t: "edit", s: `${e.label} is now ${kind === "class" ? "a class" : "an individual"}` }); }
+        if (op.description) e.description = clean(op.description, 280);
+        if (!existed) changes.push({ t: "add", s: e.label });
+        break;
+      }
+      case "remove_entity": {
+        const id = find(op.id); if (!E[id]) break;
+        changes.push({ t: "del", s: E[id].label });
+        delete E[id];
+        M.relations = M.relations.filter((r) => r.source !== id && r.target !== id);
+        if (M === model && selectedId === id) selectedId = null;
+        break;
+      }
+      case "add_relation": {
+        let s = find(op.source), o = find(op.target); if (!s || !o || s === o) break;
+        const type = ["subClassOf", "instanceOf", "property"].includes(op.type) ? op.type : "property";
+        const label = type === "property" ? clean(op.label, 40).toLowerCase() || "related to" : "";
+        ensureEntity(s, changes, type === "instanceOf" ? "individual" : "class", M);
+        ensureEntity(o, changes, "class", M);
+        if (type === "instanceOf") { E[s].kind = "individual"; E[o].kind = "class"; }
+        if (type === "subClassOf") { E[s].kind = "class"; E[o].kind = "class"; }
+        const id = relId(s, type, o, label);
+        if (M.relations.some((r) => r.id === id)) break;
+        M.relations.push({ id, source: s, target: o, type, label });
+        changes.push({ t: "add", s: `${E[s].label} ${type === "property" ? label : "is a"} ${E[o].label}` });
+        break;
+      }
+      case "remove_relation": {
+        const s = find(op.source), o = find(op.target);
+        const lab = op.label ? clean(op.label, 40).toLowerCase() : null;
+        const before = M.relations.length;
+        M.relations = M.relations.filter((r) => !(r.source === s && r.target === o && (!lab || r.label === lab || r.type === op.type)));
+        if (M.relations.length < before && E[s] && E[o]) changes.push({ t: "del", s: `${E[s].label} → ${E[o].label}` });
+        break;
+      }
+      case "merge": {
+        const from = find(op.from), into = find(op.into); if (!E[from] || !E[into] || from === into) break;
+        const moved = M.relations.map((r) => ({ ...r, source: r.source === from ? into : r.source, target: r.target === from ? into : r.target }))
+          .filter((r) => r.source !== r.target).map((r) => ({ ...r, id: relId(r.source, r.type, r.target, r.label) }));
+        const seen = new Set(); M.relations = moved.filter((r) => !seen.has(r.id) && seen.add(r.id));
+        E[into].props = { ...(E[from].props || {}), ...(E[into].props || {}) };
+        changes.push({ t: "edit", s: `${E[from].label} merged into ${E[into].label}` });
+        delete E[from]; if (M === model && selectedId === from) selectedId = into;
+        break;
+      }
+      case "set_property": {
+        const id = find(op.id); const key = clean(op.key, 40); if (!key) break;
+        const e = ensureEntity(id, changes, undefined, M);
+        e.props = e.props || {};
+        if (op.value === null || op.value === "") { delete e.props[key]; changes.push({ t: "del", s: `${e.label} ${key}` }); }
+        else { e.props[key] = clean(op.value, 120); changes.push({ t: "add", s: `${e.label} ${key}: ${e.props[key]}` }); }
+        break;
+      }
+      case "rename_map": if (op.name) { M.name = clean(op.name, 80); changes.push({ t: "edit", s: `Renamed to ${M.name}` }); } break;
+    }
+  }
+  return changes;
+}
+
+function commit(ops, note) {
+  const before = snapshot();
+  const changes = applyOps(ops);
+  if (!changes.length) return changes;
+  undoStack.push(before); if (undoStack.length > 40) undoStack.shift();
+  $("undoBtn").disabled = false;
+  if (note) logLine(note, "note");
+  changes.slice(0, 6).forEach((c) => logLine(c.s, c.t));
+  if (changes.length > 6) logLine(`and ${changes.length - 6} more changes`, "edit");
+  afterChange();
+  return changes;
+}
+function afterChange() { isExample = false; $("mapName").value = model.name; syncGraph(); markDirty(); }
+function undo() {
+  const prev = undoStack.pop(); if (!prev) return;
+  const p = JSON.parse(prev); model.name = p.name; model.entities = p.entities; model.relations = p.relations;
+  $("undoBtn").disabled = !undoStack.length;
+  if (selectedId && !model.entities[selectedId]) selectedId = null;
+  logLine("Undid the last change", "note"); afterChange();
+}
+
+/* ---------------- Theme (atlas night and day schemes) ---------------- */
+const THEMES = {
+  dark: {
+    bg: "#060A12", label: "#F2F9FF", labelStroke: "rgba(4,9,16,0.9)", tag: "#9DEFFF", tagBg: "rgba(6,10,18,0.82)", tagLine: "rgba(56,198,236,0.5)",
+    isa: "#A9CCE3", prop: "#38C6EC", add: "#FFD166", remove: "#FF6B7A", cls: "#7DEBFF", ind: "#FF8AC8",
+    palette: ["#7DEBFF", "#FF8AC8", "#C7A9FF", "#FFB347", "#5BE3B0", "#6F9BFF", "#FF3DA0", "#B6F36A"],
+    cloud: ["#38C6EC", "#FF3DA0", "#C7A9FF"], hud: "#38C6EC", hot: "#FF3DA0"
+  },
+  light: {
+    bg: "#EDF1F5", label: "#0F1E2E", labelStroke: "rgba(255,255,255,0.85)", tag: "#0A5F7D", tagBg: "rgba(255,255,255,0.92)", tagLine: "rgba(10,122,160,0.45)",
+    isa: "#5E7389", prop: "#0A7AA0", add: "#9A6A00", remove: "#B3263C", cls: "#0A7AA0", ind: "#C4157C",
+    palette: ["#0A7AA0", "#C4157C", "#6A49BE", "#A35C00", "#11774F", "#3156CF", "#B8357A", "#5C7A0B"],
+    cloud: ["#168FB8", "#C4157C", "#6A49BE"], hud: "#0A7AA0", hot: "#C4157C"
+  }
+};
+let theme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+let T = THEMES[theme];
+const familyIndex = new Map();
+const familyColor = (root) => { if (!familyIndex.has(root)) familyIndex.set(root, familyIndex.size); return T.palette[familyIndex.get(root) % T.palette.length]; };
+const isLight = () => theme === "light";
+
+/* ---------------- 3D scene: a plasma cloud of gel blobs joined by energy tubes ---------------- */
+const graphEl = $("graph");
+const noRay = () => {};
+const LABEL_LAYER = 1; /* text is drawn in its own pass after the glow, so it stays sharp */
+const Graph = new ForceGraph3D(graphEl, { controlType: "orbit" })
+  .backgroundColor("#000000") /* the real backdrop is scene.background, which is colour-managed through the glow and output passes */
+  .showNavInfo(false)
+  .nodeRelSize(4)
+  .nodeVal((n) => Math.pow((n.r || 10) / 4, 3))
+  .nodeLabel((n) => n.description ? `<b>${esc(n.label)}</b><br>${esc(n.description)}` : "")
+  .nodeThreeObject((n) => n.__obj || (n.__obj = buildNodeObj(n)))
+  .linkThreeObject((l) => l.__tube || (l.__tube = buildTube(l)))
+  .linkPositionUpdate(() => true) /* tubes are placed every frame in tick(), so they follow the camera-facing blobs */
+  .onNodeClick((n) => select(n.id, true))
+  .onBackgroundClick(() => select(null))
+  .cooldownTime(8000);
+
+Graph.d3Force("charge").strength(-200);
+Graph.d3Force("link").distance((l) => (l.source.r || 12) + (l.target.r || 12) + (l.type === "property" ? 30 : 22));
+Graph.d3Force("collide", (() => {
+  let nodes = [];
+  const f = (alpha) => {
+    for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i], b = nodes[j];
+      let dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z; const d = Math.hypot(dx, dy, dz) || 0.01;
+      const min = (a.r || 12) + (b.r || 12) + 10; if (d >= min) continue;
+      const k = ((min - d) / d) * 0.5 * Math.min(1, alpha * 3 + 0.15);
+      dx *= k; dy *= k; dz *= k;
+      a.vx -= dx; a.vy -= dy; a.vz -= dz; b.vx += dx; b.vy += dy; b.vz += dz;
+    }
+  };
+  f.initialize = (n) => { nodes = n; };
+  return f;
+})());
+
+const scene = Graph.scene();
+const UT = { value: 0 }, UL = { value: isLight() ? 1 : 0 };
+/* one blend mode for both themes: colour is added, alpha says how much of what is behind gets covered */
+const PREMULT = { transparent: true, depthWrite: false, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor };
+const softBlend = () => (isLight() ? THREE.NormalBlending : THREE.AdditiveBlending);
+const glowTex = (() => {
+  const c = document.createElement("canvas"); c.width = c.height = 128; const x = c.getContext("2d");
+  const g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.22, "rgba(255,255,255,0.5)"); g.addColorStop(0.55, "rgba(255,255,255,0.13)"); g.addColorStop(1, "rgba(255,255,255,0)");
+  x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+})();
+
+/* --- blobs --- */
+const blobGeo = new THREE.SphereGeometry(1, 56, 36);
+const BLOB_VS = `
+uniform float uTime; uniform float uSeed; uniform float uWobble;
+varying vec3 vN; varying vec3 vV; varying vec3 vP;
+float wob(vec3 p) {
+  return sin(p.x * 2.3 + uTime * 1.1 + uSeed) * sin(p.y * 2.9 - uTime * 0.9 + uSeed * 1.7) * 0.55
+       + sin(p.z * 3.3 + uTime * 0.8 + uSeed * 0.6) * sin(p.x * 1.4 + p.y * 1.9 + uTime * 0.6) * 0.45;
+}
+void main() {
+  vec3 n = normalize(position);
+  vec3 t1 = normalize(cross(n, vec3(0.13, 1.0, 0.07))); vec3 t2 = cross(n, t1);
+  float e = 0.06;
+  float d0 = wob(n * 1.7), d1 = wob(normalize(n + t1 * e) * 1.7), d2 = wob(normalize(n + t2 * e) * 1.7);
+  vec3 p = n * (1.0 + d0 * uWobble);
+  vec3 nn = normalize(n - (t1 * (d1 - d0) + t2 * (d2 - d0)) * (uWobble / e));
+  vec4 mv = modelViewMatrix * vec4(p, 1.0);
+  vN = normalize(normalMatrix * nn); vV = normalize(-mv.xyz); vP = n;
+  gl_Position = projectionMatrix * mv;
+}`;
+const BLOB_FS = `
+uniform vec3 uColor; uniform float uFade; uniform float uLight; uniform float uTime; uniform float uSeed; uniform float uHot;
+varying vec3 vN; varying vec3 vV; varying vec3 vP;
+void main() {
+  vec3 N = normalize(vN); vec3 V = normalize(vV);
+  float ndv = clamp(abs(dot(N, V)), 0.0, 1.0);
+  float fres = pow(1.0 - ndv, 2.4);
+  float sw = sin(vP.x * 4.6 + uTime * 0.7 + uSeed) * sin(vP.y * 5.4 - uTime * 0.55 + uSeed * 1.3) + sin((vP.x + vP.y) * 3.1 - uTime * 0.4 + uSeed * 2.1) * 0.6;
+  float plasma = 0.5 + 0.3 * sw;
+  vec3 L = normalize(vec3(-0.45, 0.75, 0.5));
+  float spec = pow(max(dot(reflect(-L, N), V), 0.0), 26.0);
+  float sheen = pow(max(dot(N, L), 0.0), 2.0);
+  vec3 rgb; float a;
+  if (uLight < 0.5) {
+    rgb = uColor * (0.05 + 0.07 * plasma + 0.10 * sheen + 1.25 * fres + 0.35 * uHot * fres) + vec3(0.9) * spec * 0.35;
+    rgb *= uFade; a = (0.62 - 0.25 * fres) * uFade;
+  } else {
+    vec3 body = mix(uColor, vec3(1.0), 0.56 - 0.12 * plasma + 0.12 * sheen);
+    vec3 col = mix(body, uColor, min(1.0, fres * 1.3 + 0.12 * uHot));
+    col = mix(col, vec3(1.0), spec * 0.8);
+    a = (0.84 + 0.16 * fres) * uFade; rgb = col * a;
+  }
+  gl_FragColor = vec4(rgb, a);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+function blobMaterial(n) {
+  return new THREE.ShaderMaterial({ ...PREMULT, vertexShader: BLOB_VS, fragmentShader: BLOB_FS,
+    uniforms: { uTime: UT, uLight: UL, uSeed: { value: (hash(n.id) % 628) / 100 }, uWobble: { value: 0.055 }, uColor: { value: new THREE.Color() }, uFade: { value: 1 }, uHot: { value: 0 } } });
+}
+const arcGeo = [0, 1].map((i) => new THREE.TorusGeometry(1, 0.012, 6, 48, i ? 1.3 : 2.5));
+function makeArcs(mat) {
+  const g = new THREE.Group();
+  [[0, 0], [1, 3.4]].forEach(([i, rot]) => { const m = new THREE.Mesh(arcGeo[i], mat); m.rotation.z = rot; m.raycast = noRay; m.renderOrder = 1; g.add(m); });
+  return g;
+}
+function wrapLabel(s) {
+  const words = String(s).split(/\s+/).filter(Boolean), lines = []; let cur = "";
+  for (const w of words) { if (cur && (cur + " " + w).length > 13) { lines.push(cur); cur = w; } else cur = cur ? cur + " " + w : w; }
+  if (cur) lines.push(cur);
+  if (lines.length > 3) { lines.length = 3; lines[2] = lines[2].replace(/.$/, "") + "…"; }
+  return lines.map((l) => (l.length > 20 ? l.slice(0, 19) + "…" : l)).join("\n") || "?";
+}
+function makeLabel(text, h) {
+  const s = new SpriteText(text, h, T.label);
+  s.fontFace = "Barlow, Segoe UI, Arial, sans-serif"; s.fontWeight = "600"; s.fontSize = 72;
+  s.material.transparent = true; s.material.depthWrite = false; s.material.depthTest = false; s.renderOrder = 1; s.layers.set(LABEL_LAYER);
+  return s;
+}
+function buildNodeObj(n) {
+  const g = new THREE.Group(), u = (g.userData = { fade: 1 });
+  u.face = new THREE.Group(); g.add(u.face);
+  u.halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, depthTest: false, blending: softBlend() }));
+  u.halo.raycast = noRay; u.halo.renderOrder = 0;
+  u.blob = new THREE.Mesh(blobGeo, blobMaterial(n)); u.blob.renderOrder = 1;
+  u.ringMat = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: softBlend() });
+  u.ring = makeArcs(u.ringMat); u.ringTilt = new THREE.Group(); u.ringTilt.rotation.x = 1.12; u.ringTilt.add(u.ring);
+  u.label = makeLabel("", 4.2);
+  u.face.add(u.halo, u.blob, u.ringTilt, u.label);
+  refreshNodeObj(n, g);
+  return g;
+}
+function refreshNodeObj(n, g) {
+  const u = g.userData, isC = n.kind === "class";
+  if (u.kind !== n.kind || u.labelText !== n.label) {
+    u.kind = n.kind; u.labelText = n.label;
+    u.label.textHeight = isC ? 4.2 : 3.5; u.label.text = wrapLabel(n.label);
+    sizeNode(n, g);
+  }
+  u.pending = n.pending; u.color = n.color;
+  u.blob.material.uniforms.uColor.value.set(n.color); u.halo.material.color.set(n.color); u.ringMat.color.set(n.color);
+  if (u.themeKey !== theme) { u.themeKey = theme; u.label.strokeColor = T.labelStroke; u.label.strokeWidth = isLight() ? 0 : 0.6; u.label.color = T.label; } /* each setter redraws the text, so only on a theme change */
+  u.halo.material.blending = u.ringMat.blending = softBlend();
+  u.ringTilt.visible = isC;
+  setNodeFade(g, u.fade);
+}
+function sizeNode(n, g) {
+  const u = g.userData, isC = n.kind === "class";
+  const w = u.label.scale.x, h = u.label.scale.y, pad = isC ? 3.6 : 3.0;
+  let rx = w / 2 + pad * 1.2, ry = h / 2 + pad;
+  const k = Math.hypot(w / 2 / rx, h / 2 / ry) / 0.84; if (k > 1) { rx *= k; ry *= k; }
+  ry = Math.max(ry, rx * 0.6); rx = Math.max(rx, ry * 1.08);
+  u.rx = rx; u.ry = ry; n.r = rx * 0.72 + ry * 0.28;
+  u.blob.scale.set(rx, ry, ry);
+  u.halo.scale.set(rx * 4.4, ry * 4.6, 1);
+  u.ring.scale.setScalar(rx * 1.24);
+}
+function setNodeFade(g, f) {
+  const u = g.userData; u.fade = f;
+  u.labelBase = Math.max(0.14, f);
+  if (u.pending) f *= 0.8;
+  u.blob.material.uniforms.uFade.value = f;
+  u.halo.material.opacity = (isLight() ? 0.2 : 0.3) * f;
+  u.ringMat.opacity = (isLight() ? 0.75 : 0.85) * f;
+  u.label.material.opacity = u.labelBase * (1 - 0.9 * (u.occ || 0));
+}
+
+/* --- tubes: one mesh per relation, a swollen root, a flowing shaft and a cone head, all bent in the vertex shader --- */
+const tubeGeo = (() => {
+  const RAD = 14, SHAFT = 28, HEAD = 7, pos = [], au = [], ah = [], idx = [], rings = [];
+  for (let i = 0; i <= SHAFT; i++) rings.push([i / SHAFT, 0]);
+  for (let j = 0; j <= HEAD; j++) rings.push([j / HEAD, 1]);
+  for (const [u, hd] of rings) for (let k = 0; k < RAD; k++) { const a = (k / RAD) * Math.PI * 2; pos.push(Math.cos(a), Math.sin(a), 0); au.push(u); ah.push(hd); }
+  for (let i = 0; i < rings.length - 1; i++) for (let k = 0; k < RAD; k++) {
+    const a = i * RAD + k, b = i * RAD + ((k + 1) % RAD), c = a + RAD, d = b + RAD; idx.push(a, b, c, b, d, c);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("aU", new THREE.Float32BufferAttribute(au, 1));
+  g.setAttribute("aHead", new THREE.Float32BufferAttribute(ah, 1));
+  g.setIndex(idx);
+  return g;
+})();
+const TUBE_VS = `
+attribute float aU; attribute float aHead;
+uniform vec3 uA; uniform vec3 uB; uniform vec3 uC; uniform vec3 uRef;
+uniform float uR; uniform float uLen; uniform float uHeadLen; uniform float uTime; uniform float uPhase;
+varying vec3 vN; varying vec3 vV; varying float vT; varying float vHead;
+vec3 bez(float t) { float m = 1.0 - t; return m * m * uA + 2.0 * m * t * uC + t * t * uB; }
+vec3 bezT(float t) { return 2.0 * (1.0 - t) * (uC - uA) + 2.0 * t * (uB - uC); }
+void main() {
+  float tH = 1.0 - clamp(uHeadLen / max(uLen, 0.001), 0.0, 0.6);
+  float t; float r; float slope = 0.0;
+  if (aHead < 0.5) {
+    t = aU * tH;
+    float root = 1.0 + 1.0 * pow(1.0 - clamp(t * uLen / 9.0, 0.0, 1.0), 2.0);
+    float wave = 1.0 + 0.16 * sin(t * uLen * 0.3 - uTime * 2.6 + uPhase);
+    r = uR * root * wave;
+  } else {
+    t = mix(tH, 1.0, aU);
+    r = uR * 2.6 * (1.0 - aU);
+    slope = uR * 2.6 / max(uHeadLen, 0.001);
+  }
+  vec3 P = bez(t); vec3 Tn = normalize(bezT(t));
+  vec3 N1 = normalize(uRef - Tn * dot(uRef, Tn)); vec3 N2 = cross(Tn, N1);
+  vec3 radial = position.x * N1 + position.y * N2;
+  vec4 mv = viewMatrix * vec4(P + radial * r, 1.0);
+  vN = normalize(mat3(viewMatrix) * normalize(radial + Tn * slope)); vV = normalize(-mv.xyz);
+  vT = t; vHead = aHead;
+  gl_Position = projectionMatrix * mv;
+}`;
+const TUBE_FS = `
+uniform vec3 uColor; uniform float uFade; uniform float uLight; uniform float uTime; uniform float uLen; uniform float uPhase; uniform float uFlow;
+varying vec3 vN; varying vec3 vV; varying float vT; varying float vHead;
+void main() {
+  vec3 N = normalize(vN); vec3 V = normalize(vV);
+  float ndv = clamp(abs(dot(N, V)), 0.0, 1.0);
+  float fres = pow(1.0 - ndv, 1.6);
+  float flow = smoothstep(0.35, 1.0, sin(vT * uLen * 0.3 - uTime * 2.6 + uPhase)) * uFlow * (1.0 - vHead);
+  vec3 L = normalize(vec3(-0.45, 0.75, 0.5));
+  float diff = 0.5 + 0.5 * dot(N, L);
+  float spec = pow(max(dot(reflect(-L, N), V), 0.0), 20.0);
+  vec3 rgb; float a;
+  if (uLight < 0.5) {
+    rgb = uColor * (0.07 + 0.30 * diff + 0.38 * fres + 0.6 * flow + 0.28 * vHead) + vec3(0.8) * spec * 0.3;
+    rgb *= uFade; a = 0.55 * uFade;
+  } else {
+    vec3 col = uColor * (0.8 + 0.3 * diff);
+    col = mix(col, vec3(1.0), min(0.85, spec * 0.7 + flow * 0.55));
+    a = min(1.0, 0.6 + 0.3 * fres + 0.3 * vHead) * uFade; rgb = col * a;
+  }
+  gl_FragColor = vec4(rgb, a);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+const V3 = () => new THREE.Vector3();
+function buildTube(l) {
+  const mat = new THREE.ShaderMaterial({ ...PREMULT, vertexShader: TUBE_VS, fragmentShader: TUBE_FS,
+    uniforms: { uTime: UT, uLight: UL, uA: { value: V3() }, uB: { value: V3() }, uC: { value: V3() }, uRef: { value: new THREE.Vector3(0, 1, 0) },
+      uR: { value: 1 }, uLen: { value: 1 }, uHeadLen: { value: 6 }, uPhase: { value: (hash(l.id) % 628) / 100 }, uFlow: { value: 1 }, uColor: { value: new THREE.Color() }, uFade: { value: 1 } } });
+  const m = new THREE.Mesh(tubeGeo, mat);
+  m.frustumCulled = false; m.raycast = noRay; m.renderOrder = 1; m.userData = { lit: true };
+  refreshTube(l, m);
+  return m;
+}
+function refreshTube(l, m) {
+  const u = m.userData, U = m.material.uniforms, prop = l.type === "property";
+  U.uR.value = prop ? 0.85 : 1.25; U.uHeadLen.value = prop ? 5.2 : 6.6; U.uFlow.value = prop ? 1 : 0.45;
+  U.uColor.value.set(l.pending === "add" ? T.add : l.pending === "remove" ? T.remove : prop ? T.prop : T.isa);
+  if (prop && !u.tag) {
+    const s = (u.tag = new SpriteText(l.label, 3.1, T.tag));
+    s.fontFace = "Barlow, Segoe UI, Arial, sans-serif"; s.fontWeight = "500"; s.fontSize = 64;
+    s.padding = 1.0; s.borderRadius = 1.6; s.borderWidth = 0.16;
+    s.material.transparent = true; s.material.depthWrite = false; s.material.depthTest = false; s.renderOrder = 1; s.raycast = noRay; s.layers.set(LABEL_LAYER);
+    m.add(s);
+  }
+  if (u.tag) {
+    u.tag.visible = prop;
+    if (u.tag.text !== l.label) u.tag.text = l.label;
+    const tc = l.pending === "add" ? T.add : l.pending === "remove" ? T.remove : T.tag;
+    if (u.tag.backgroundColor !== T.tagBg) { u.tag.backgroundColor = T.tagBg; u.tag.borderColor = T.tagLine; }
+    if (u.tag.color !== tc) u.tag.color = tc;
+  }
+  setTubeLit(m, u.lit);
+}
+function setTubeLit(m, lit) {
+  const u = m.userData; u.lit = lit;
+  m.material.uniforms.uFade.value = lit ? 1 : 0.1;
+  if (u.tag) u.tag.material.opacity = (lit ? 1 : 0.1) * (1 - 0.9 * (u.occ || 0));
+}
+const cR = V3(), cU = V3(), cF = V3(), pA = V3(), pB = V3(), pC = V3(), pM = V3(), d1 = V3(), d2 = V3();
+function surfDist(n, d) {
+  const g = n.__obj, u = g && g.userData; if (!u || !u.rx) return 8;
+  return g.scale.x / Math.hypot(d.dot(cR) / u.rx, d.dot(cU) / u.ry, d.dot(cF) / u.ry);
+}
+function placeTube(l) {
+  const m = l.__tube, s = l.source, t = l.target; if (!m || !s || !t || s.x == null || t.x == null) return;
+  const U = m.material.uniforms;
+  pA.set(s.x, s.y, s.z); pB.set(t.x, t.y, t.z); pM.addVectors(pA, pB).multiplyScalar(0.5);
+  d1.subVectors(pB, pA);
+  if (l.curv) { (d1.x || d1.y ? pC.set(d1.y, -d1.x, 0) : pC.set(-d1.z, 0, d1.x)).multiplyScalar(l.curv).add(pM); } else pC.copy(pM);
+  d2.subVectors(pC, pA).normalize(); const sa = surfDist(s, d2) * 0.95; U.uA.value.copy(pA).addScaledVector(d2, sa);
+  d2.subVectors(pC, pB).normalize(); const sb = surfDist(t, d2) * 1.03 + 0.5; U.uB.value.copy(pB).addScaledVector(d2, sb);
+  const A = U.uA.value, B = U.uB.value;
+  d2.subVectors(B, A); const len = d2.length();
+  m.visible = len > 2 && d2.dot(d1) > 0;
+  if (!m.visible) return;
+  if (!l.curv) pC.addVectors(A, B).multiplyScalar(0.5);
+  U.uC.value.copy(pC); U.uLen.value = len;
+  pM.addVectors(A, B).multiplyScalar(0.5); d1.subVectors(pC, pM);
+  if (d1.lengthSq() > 0.01) U.uRef.value.crossVectors(d2, d1).normalize();
+  else { U.uRef.value.crossVectors(d2, cU); if (U.uRef.value.lengthSq() < 0.01) U.uRef.value.crossVectors(d2, cR); U.uRef.value.normalize(); }
+  m.position.copy(A).multiplyScalar(0.25).addScaledVector(pC, 0.5).addScaledVector(B, 0.25); /* curve midpoint: depth sorting and the tag hang off it */
+}
+
+/* --- the cloud: drifting motes, soft nebula puffs, a holo ring floor and a targeting ring for the selection --- */
+const cloud = { c: V3(), r: 140 };
+const motes = (() => {
+  const N = 1500, pos = new Float32Array(N * 3), seed = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const r = Math.pow(Math.random(), 0.6) * 1.55, th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
+    pos[i * 3] = r * Math.sin(ph) * Math.cos(th); pos[i * 3 + 1] = r * Math.cos(ph) * 0.75; pos[i * 3 + 2] = r * Math.sin(ph) * Math.sin(th);
+    seed[i * 3] = Math.random(); seed[i * 3 + 1] = Math.random(); seed[i * 3 + 2] = Math.random();
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3)); g.setAttribute("aSeed", new THREE.BufferAttribute(seed, 3));
+  const mat = new THREE.ShaderMaterial({ ...PREMULT, depthTest: false,
+    uniforms: { uTime: UT, uLight: UL, uCenter: { value: cloud.c }, uRadius: { value: cloud.r }, uScale: { value: 1 }, uA: { value: new THREE.Color() }, uB: { value: new THREE.Color() }, uC: { value: new THREE.Color() } },
+    vertexShader: `
+attribute vec3 aSeed; uniform float uTime; uniform float uRadius; uniform float uScale; uniform vec3 uCenter;
+varying float vMix; varying float vTw;
+void main() {
+  float a = uTime * (0.03 + aSeed.x * 0.09) + aSeed.y * 6.283;
+  float c = cos(a), s = sin(a);
+  vec3 q = vec3(position.x * c - position.z * s, position.y + 0.07 * sin(uTime * 0.35 + aSeed.z * 6.283), position.x * s + position.z * c);
+  vec4 mv = modelViewMatrix * vec4(uCenter + q * uRadius, 1.0);
+  gl_PointSize = uScale * (1.2 + aSeed.z * 3.2) * (420.0 / max(1.0, -mv.z));
+  vMix = aSeed.x; vTw = 0.55 + 0.45 * sin(uTime * (0.7 + aSeed.y * 1.8) + aSeed.z * 40.0);
+  gl_Position = projectionMatrix * mv;
+}`,
+    fragmentShader: `
+uniform vec3 uA; uniform vec3 uB; uniform vec3 uC; uniform float uLight;
+varying float vMix; varying float vTw;
+void main() {
+  float d = length(gl_PointCoord - 0.5);
+  float a = smoothstep(0.5, 0.05, d) * vTw;
+  vec3 col = vMix < 0.5 ? mix(uA, uC, vMix * 2.0) : mix(uC, uB, vMix * 2.0 - 1.0);
+  a *= mix(0.55, 0.75, uLight);
+  gl_FragColor = vec4(col * a, a * uLight);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}` });
+  const p = new THREE.Points(g, mat); p.frustumCulled = false; p.raycast = noRay; p.renderOrder = 0; scene.add(p);
+  return p;
+})();
+const puffs = Array.from({ length: 8 }, (_, i) => {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, depthTest: false }));
+  s.raycast = noRay; s.renderOrder = -1;
+  const th = (i / 8) * Math.PI * 2 + Math.random(), y = (Math.random() - 0.5) * 0.9, rr = 0.25 + Math.random() * 0.6;
+  s.userData = { dir: new THREE.Vector3(Math.cos(th) * rr, y, Math.sin(th) * rr), size: 1.1 + Math.random() * 0.9, ph: Math.random() * 6.28, sp: 0.05 + Math.random() * 0.08, tint: i % 3 };
+  scene.add(s); return s;
+});
+const floor = (() => {
+  const g = new THREE.Group(), pts = [];
+  const circle = (r, a0 = 0, a1 = Math.PI * 2, n = 160) => { for (let i = 0; i < n; i++) { const a = a0 + ((a1 - a0) * i) / n, b = a0 + ((a1 - a0) * (i + 1)) / n; pts.push(Math.cos(a) * r, 0, Math.sin(a) * r, Math.cos(b) * r, 0, Math.sin(b) * r); } };
+  circle(1); circle(0.62); circle(1.16, 0.3, 1.5, 40); circle(1.16, 2.4, 3.9, 50); circle(1.16, 4.6, 5.5, 30); circle(0.3);
+  for (let i = 0; i < 72; i++) { const a = (i / 72) * Math.PI * 2, r0 = i % 6 ? 1.0 : 0.96, r1 = i % 6 ? 1.035 : 1.07; pts.push(Math.cos(a) * r0, 0, Math.sin(a) * r0, Math.cos(a) * r1, 0, Math.sin(a) * r1); }
+  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + 0.785; pts.push(Math.cos(a) * 0.3, 0, Math.sin(a) * 0.3, Math.cos(a) * 0.62, 0, Math.sin(a) * 0.62); }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+  const lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ transparent: true, depthWrite: false }));
+  lines.raycast = noRay; lines.frustumCulled = false; lines.renderOrder = -1; g.add(lines); g.userData = { lines };
+  scene.add(g); return g;
+})();
+const reticleMat = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, depthTest: false });
+const reticle = (() => { const g = new THREE.Group(); const a = makeArcs(reticleMat), b = makeArcs(reticleMat); b.scale.setScalar(1.09); g.add(a, b); g.userData = { a, b }; g.visible = false; scene.add(g); return g; })();
+
+// glow, then convert to screen colours so the palette matches the panels exactly
+let bloom = null;
+try {
+  const composer = Graph.postProcessingComposer();
+  bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.3, 0.55, 0.3);
+  composer.addPass(bloom);
+  composer.addPass({ enabled: true, needsSwap: false, clear: false, renderToScreen: false, setSize() {}, dispose() {},
+    render(renderer, writeBuffer, readBuffer) {
+      const cam = Graph.camera(), bg = scene.background, auto = renderer.autoClear;
+      scene.background = null; renderer.autoClear = false; cam.layers.set(LABEL_LAYER);
+      renderer.setRenderTarget(this.renderToScreen ? null : readBuffer);
+      renderer.render(scene, cam);
+      cam.layers.set(0); scene.background = bg; renderer.autoClear = auto;
+    } });
+  composer.addPass(new OutputPass());
+} catch (e) { /* glow is decorative */ }
+
+function applySceneTheme() {
+  T = THEMES[theme]; UL.value = isLight() ? 1 : 0;
+  scene.background = new THREE.Color(T.bg);
+  if (bloom) bloom.enabled = !isLight();
+  const mu = motes.material.uniforms; mu.uA.value.set(T.cloud[0]); mu.uB.value.set(T.cloud[1]); mu.uC.value.set(T.cloud[2]);
+  puffs.forEach((p) => { p.material.color.set(T.cloud[p.userData.tint]); p.material.blending = softBlend(); });
+  const fm = floor.userData.lines.material; fm.color.set(T.hud); fm.blending = softBlend(); fm.opacity = isLight() ? 0.3 : 0.34;
+  reticleMat.color.set(T.hot); reticleMat.blending = softBlend(); reticleMat.opacity = isLight() ? 0.9 : 1;
+}
+applySceneTheme();
+function setTheme(name, quiet) {
+  theme = name === "light" ? "light" : "dark";
+  document.documentElement.dataset.theme = theme;
+  try { localStorage.setItem("ontograph.theme", theme); } catch (e) { /* the choice just won't be remembered */ }
+  const next = isLight() ? "dark" : "light";
+  $("themeBtn").setAttribute("aria-label", `Switch to ${next} mode`); $("themeBtn").title = `Switch to ${next} mode`;
+  applySceneTheme();
+  if (!quiet) syncGraph();
+}
+$("themeBtn").onclick = () => setTheme(isLight() ? "dark" : "light");
+
+// gentle drift until the viewer touches the scene
+const controls = Graph.controls();
+if (controls && !reduceMotion) { controls.autoRotate = true; controls.autoRotateSpeed = 0.3; }
+let touched = false;
+graphEl.addEventListener("pointerdown", () => { touched = true; if (controls) controls.autoRotate = false; });
+graphEl.addEventListener("wheel", () => { touched = true; }, { passive: true });
+Graph.onEngineStop(() => { if (!touched) fit(); });
+
+/* the scene is centred in the space the panels leave free: left of the right rail, above the voice console */
+let dockH = 150;
+function insets() {
+  const desk = innerWidth > 860;
+  return { right: desk ? 346 : 0, bottom: dockH + (desk ? 28 : 20), top: desk ? 0 : $("brandBar").offsetHeight + 12 };
+}
+function applyViewOffset() {
+  const cam = Graph.camera(), i = insets();
+  cam.setViewOffset(innerWidth, innerHeight, i.right / 2, (i.bottom - i.top) / 2, innerWidth, innerHeight);
+}
+function onLayout() {
+  dockH = $("dock").offsetHeight || 150;
+  document.documentElement.style.setProperty("--dock-h", dockH + "px");
+  applyViewOffset();
+}
+addEventListener("resize", () => { Graph.width(innerWidth).height(innerHeight); if (bloom) bloom.setSize(innerWidth, innerHeight); onLayout(); });
+if (window.ResizeObserver) new ResizeObserver(onLayout).observe($("dock"));
+onLayout();
+
+/* ---------------- Proposals: every Claude change waits for approval ---------------- */
+let proposals = [];           // [{pid, from, note, items:[{op, text, t, on, deps:[idx], creates:[ids], refs:[ids]}], utt}]
+let view = { entities: {}, relations: [], flags: new Map(), rflags: new Map() };
+const clone = (o) => JSON.parse(JSON.stringify(o));
+function opRefs(op) { return [op.id, op.source, op.target, op.from, op.into].filter(Boolean).map(slug); }
+function computeDisplay() {
+  const D = { name: model.name, entities: clone(model.entities), relations: clone(model.relations) };
+  const removeIds = new Set(), removeRels = [];
+  for (const p of proposals) for (const it of p.items) {
+    if (!it.on) continue;
+    const op = it.op;
+    if (op.op === "remove_entity") removeIds.add(resolveId(op.id, D));
+    else if (op.op === "merge") removeIds.add(resolveId(op.from, D));
+    else if (op.op === "remove_relation") removeRels.push(op);
+    else applyOps([op], D);
+  }
+  const flags = new Map(), rflags = new Map();
+  for (const id in D.entities) {
+    const a = D.entities[id], b = model.entities[id];
+    if (!b) flags.set(id, "add");
+    else if (a.label !== b.label || a.kind !== b.kind || JSON.stringify(a.props || {}) !== JSON.stringify(b.props || {}) || (a.description || "") !== (b.description || "")) flags.set(id, "edit");
+  }
+  const committedRel = new Set(model.relations.map((r) => r.id));
+  for (const r of D.relations) if (!committedRel.has(r.id)) rflags.set(r.id, "add");
+  for (const id of removeIds) if (D.entities[id]) { flags.set(id, "remove"); for (const r of D.relations) if (r.source === id || r.target === id) rflags.set(r.id, "remove"); }
+  for (const op of removeRels) { const a = resolveId(op.source, D), b = resolveId(op.target, D); const lab = op.label ? clean(op.label, 40).toLowerCase() : null;
+    for (const r of D.relations) if (r.source === a && r.target === b && (!lab || r.label === lab)) rflags.set(r.id, "remove"); }
+  return { entities: D.entities, relations: D.relations, flags, rflags };
+}
+function resolveId(raw, M) { const id = slug(raw); if (M.entities[id]) return id; const e = Object.values(M.entities).find((x) => slug(x.label) === id); return e ? e.id : id; }
+
+function propose(ops, note, from, utt) {
+  // dry-run each op against what is currently on screen, so every row describes one concrete change
+  const D = { name: model.name, entities: clone(view.entities), relations: clone(view.relations) };
+  const items = [], createdBy = new Map();
+  for (const op of Array.isArray(ops) ? ops : []) {
+    if (!op || typeof op !== "object") continue;
+    const before = new Set(Object.keys(D.entities));
+    const ch = applyOps([op], D);
+    if (!ch.length) continue;
+    const creates = Object.keys(D.entities).filter((id) => !before.has(id));
+    const deps = [...new Set(opRefs(op).map((id) => resolveId(id, D)).filter((id) => createdBy.has(id) && !creates.includes(id)).map((id) => createdBy.get(id)))];
+    const idx = items.length;
+    creates.forEach((id) => createdBy.set(id, idx));
+    items.push({ op, text: ch.map((c) => c.s).join("; "), t: ch[0].t, on: true, deps, creates, refs: opRefs(op).map((id) => resolveId(id, D)) });
+  }
+  if (!items.length) return 0;
+  proposals.push({ pid: Math.random().toString(36).slice(2), from, note, items, utt });
+  syncGraph(); renderApprovals();
+  return items.length;
+}
+function toggleItem(p, i, on) {
+  const it = p.items[i]; it.on = on;
+  if (on) it.deps.forEach((d) => (p.items[d].on = true));
+  else p.items.forEach((x, j) => { if (x.deps.includes(i)) x.on = false; });
+  syncGraph(); renderApprovals();
+}
+function approve(p, all) {
+  if (!p) return;
+  const ops = p.items.filter((it) => all || it.on).map((it) => it.op);
+  proposals = proposals.filter((x) => x !== p);
+  const n = ops.length;
+  if (n) commit(ops, p.note); else syncGraph();
+  if (p.utt) setUtt(p.utt, n ? "done" : "", n === p.items.length ? `approved ${n} change${n > 1 ? "s" : ""}` : `approved ${n} of ${p.items.length}`);
+  renderApprovals();
+}
+function reject(p) {
+  if (!p) return;
+  proposals = proposals.filter((x) => x !== p);
+  if (p.utt) setUtt(p.utt, "", "rejected");
+  logLine("Rejected proposed changes", "note");
+  syncGraph(); renderApprovals();
+}
+function renderApprovals() {
+  const box = $("approvals");
+  box.hidden = !proposals.length;
+  box.innerHTML = proposals.length ? `<p class="aphead">${proposals.length === 1 ? "1 proposal" : proposals.length + " proposals"} waiting <span>say “approve” or “reject”</span></p>` : "";
+  proposals.forEach((p, pi) => {
+    const on = p.items.filter((i) => i.on).length;
+    const card = document.createElement("section"); card.className = "card proposal" + (pi === 0 ? " first" : "");
+    card.innerHTML = `<p class="from">“${esc(p.from.length > 90 ? p.from.slice(0, 88) + "…" : p.from)}”</p>
+      <ul class="items">${p.items.map((it, i) => `<li><label><input type="checkbox" data-i="${i}" ${it.on ? "checked" : ""}><span class="mk ${it.t}">${it.t === "add" ? "+" : it.t === "del" ? "−" : "~"}</span><span class="tx">${esc(it.text)}</span></label>${it.refs[0] ? `<button class="look" data-look="${esc(it.refs[0])}" aria-label="Show in graph">◎</button>` : ""}</li>`).join("")}</ul>
+      <div class="apbtns"><button class="btn small" data-act="reject">Reject</button><button class="btn small primary" data-act="approve" ${on ? "" : "disabled"}>Approve ${on === p.items.length ? (on > 1 ? "all " + on : "") : on + " of " + p.items.length}</button></div>`;
+    card.querySelectorAll("input[data-i]").forEach((cb) => (cb.onchange = () => toggleItem(p, +cb.dataset.i, cb.checked)));
+    card.querySelectorAll("[data-look]").forEach((b) => (b.onclick = () => select(b.dataset.look, true)));
+    card.querySelector('[data-act="reject"]').onclick = () => reject(p);
+    card.querySelector('[data-act="approve"]').onclick = () => approve(p);
+    box.append(card);
+  });
+  requestAnimationFrame(placeRightRail);
+}
+function placeRightRail() {
+  const box = $("approvals"), rail = $("rightRail");
+  rail.style.top = !box.hidden && innerWidth > 860 ? Math.min(innerHeight * 0.6, box.offsetHeight) + 28 + "px" : "";
+}
+addEventListener("resize", placeRightRail);
+
+/* graph sync: keep node objects stable so positions persist */
+const nodeMap = new Map(), linkMap = new Map();
+let viewMode = "concept";
+function hash(s) { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+function parentsOf(id) { return view.relations.filter((r) => r.source === id && (r.type === "subClassOf" || r.type === "instanceOf")).map((r) => r.target); }
+function rootOf(id, seen = new Set()) { if (seen.has(id)) return id; seen.add(id); const p = parentsOf(id).filter((x) => view.entities[x]); return p.length ? rootOf(p[0], seen) : id; }
+function depthOf(id, seen = new Set()) { if (seen.has(id) || seen.size > 40) return 0; seen.add(id); const p = parentsOf(id).filter((x) => view.entities[x]); return p.length ? 1 + Math.max(...p.map((x) => depthOf(x, new Set(seen)))) : 0; }
+
+function syncGraph() {
+  view = computeDisplay();
+  if (selectedId && !view.entities[selectedId]) selectedId = null;
+  const E = view.entities;
+  for (const id in E) {
+    let n = nodeMap.get(id);
+    if (!n) {
+      n = { id, born: performance.now() };
+      const nbRel = view.relations.find((r) => (r.source === id && nodeMap.get(r.target)?.x != null) || (r.target === id && nodeMap.get(r.source)?.x != null));
+      const nb = nbRel && nodeMap.get(nbRel.source === id ? nbRel.target : nbRel.source);
+      if (nb) { n.x = nb.x + (Math.random() - 0.5) * 30; n.y = nb.y + (Math.random() - 0.5) * 30; n.z = nb.z + (Math.random() - 0.5) * 30; }
+      nodeMap.set(id, n);
+    }
+    n.label = E[id].label; n.kind = E[id].kind; n.description = E[id].description || ""; n.pending = view.flags.get(id) || "";
+  }
+  for (const id of [...nodeMap.keys()]) if (!E[id]) nodeMap.delete(id);
+  const want = new Map(view.relations.filter((r) => E[r.source] && E[r.target]).map((r) => [r.id, r]));
+  for (const id of [...linkMap.keys()]) if (!want.has(id)) linkMap.delete(id);
+  const pairCount = new Map();
+  for (const [id, r] of want) {
+    let l = linkMap.get(id);
+    if (!l) { l = { id, source: r.source, target: r.target }; linkMap.set(id, l); }
+    l.type = r.type; l.label = r.label; l.pending = view.rflags.get(id) || "";
+    const key = [r.source, r.target].sort().join("~"); const k = pairCount.get(key) || 0; pairCount.set(key, k + 1);
+    l.curv = k === 0 ? 0 : 0.3 * Math.ceil(k / 2) * (k % 2 ? 1 : -1) * (r.source < r.target ? 1 : -1);
+  }
+  // colours + layout mode
+  for (const n of nodeMap.values()) {
+    n.color = n.pending === "add" ? T.add : n.pending === "remove" ? T.remove : viewMode === "formal" ? (n.kind === "class" ? T.cls : T.ind) : familyColor(rootOf(n.id));
+    if (viewMode === "formal") { n.fy = 96 - depthOf(n.id) * 66; } else { n.fy = undefined; }
+  }
+  Graph.graphData({ nodes: [...nodeMap.values()], links: [...linkMap.values()] });
+  for (const n of nodeMap.values()) if (n.__obj) refreshNodeObj(n, n.__obj);
+  for (const l of linkMap.values()) if (l.__tube) refreshTube(l, l.__tube);
+  applyHighlight(); renderStats(); renderDetail();
+}
+
+/* selection + highlight */
+let selectedId = null;
+function neighbours(id) { const s = new Set(); for (const r of view.relations) { if (r.source === id) s.add(r.target); if (r.target === id) s.add(r.source); } return s; }
+function applyHighlight() {
+  const nb = selectedId ? neighbours(selectedId) : null;
+  for (const n of nodeMap.values()) { const on = !selectedId || n.id === selectedId || nb.has(n.id); if (n.__obj) setNodeFade(n.__obj, on ? 1 : 0.16); }
+  const lit = (l) => !selectedId || (l.source.id ?? l.source) === selectedId || (l.target.id ?? l.target) === selectedId;
+  for (const l of linkMap.values()) if (l.__tube) setTubeLit(l.__tube, lit(l));
+}
+function select(id, fly) {
+  selectedId = id && view.entities[id] ? id : null;
+  applyHighlight(); renderDetail();
+  if (selectedId && fly) flyTo(nodeMap.get(selectedId));
+  if (selectedId && innerWidth <= 860) $("rightRail").classList.add("open");
+}
+function flyTo(n) {
+  if (!n || n.x == null) return;
+  touched = true; if (controls) controls.autoRotate = false;
+  const cam = Graph.camera(), d = 150 + (n.r || 12) * 2;
+  let dx = cam.position.x - n.x, dy = cam.position.y - n.y, dz = cam.position.z - n.z; const len = Math.hypot(dx, dy, dz) || 1;
+  Graph.cameraPosition({ x: n.x + (dx / len) * d, y: n.y + (dy / len) * d, z: n.z + (dz / len) * d }, n, reduceMotion ? 0 : 1200);
+}
+function fit() {
+  // frame the graph in the space the panels leave free (the camera's view offset centres it there)
+  const ns = [...nodeMap.values()].filter((n) => n.x != null); if (!ns.length) return;
+  const c = ns.reduce((a, n) => ({ x: a.x + n.x / ns.length, y: a.y + n.y / ns.length, z: a.z + n.z / ns.length }), { x: 0, y: 0, z: 0 });
+  const rad = Math.max(40, ...ns.map((n) => Math.hypot(n.x - c.x, n.y - c.y, n.z - c.z) + (n.r || 12))) + 8;
+  const cam = Graph.camera(), half = (cam.fov * Math.PI) / 360;
+  const ins = insets(), usableW = innerWidth - ins.right - 40, usableH = innerHeight - ins.bottom - ins.top - 32;
+  const halfX = Math.atan(Math.tan(half) * Math.max(200, usableW) / innerHeight), halfY = Math.atan(Math.tan(half) * Math.max(160, usableH) / innerHeight);
+  const t = controls && controls.target ? controls.target : { x: 0, y: 0, z: 0 };
+  let dir = { x: cam.position.x - t.x, y: cam.position.y - t.y, z: cam.position.z - t.z }; const dl = Math.hypot(dir.x, dir.y, dir.z) || 1;
+  dir = { x: dir.x / dl, y: dir.y / dl, z: dir.z / dl };
+  let dist = 0.7 * rad / Math.sin(Math.min(halfX, halfY));
+  for (const n of ns) {
+    const px = (n.x - c.x) * cR.x + (n.y - c.y) * cR.y + (n.z - c.z) * cR.z, py = (n.x - c.x) * cU.x + (n.y - c.y) * cU.y + (n.z - c.z) * cU.z;
+    const pz = (n.x - c.x) * dir.x + (n.y - c.y) * dir.y + (n.z - c.z) * dir.z, r = (n.r || 12) + 10;
+    dist = Math.max(dist, ((Math.abs(px) + r) / Math.tan(halfX) + pz) * 1.05, ((Math.abs(py) + r) / Math.tan(halfY) + pz) * 1.05);
+  }
+  Graph.cameraPosition({ x: c.x + dir.x * dist, y: c.y + dir.y * dist, z: c.z + dir.z * dist }, c, reduceMotion ? 0 : 900);
+}
+
+/* a label whose centre sits behind a nearer blob eases out, so text never prints across another blob */
+const seen = [];
+function fadeHiddenLabels(cam) {
+  const e = cam.matrixWorldInverse.elements; seen.length = 0;
+  const toView = (x, y, z, o) => { o.x = e[0] * x + e[4] * y + e[8] * z + e[12]; o.y = e[1] * x + e[5] * y + e[9] * z + e[13]; o.d = -(e[2] * x + e[6] * y + e[10] * z + e[14]); return o; };
+  for (const n of nodeMap.values()) { const g = n.__obj; if (!g || n.x == null) continue; const u = g.userData; seen.push(toView(n.x, n.y, n.z, u.vp || (u.vp = { u }))); }
+  if (seen.length > 260) return;
+  const hidden = (p, self) => {
+    if (p.d <= 1) return 0;
+    const sx = p.x / p.d, sy = p.y / p.d;
+    for (const q of seen) { if (q === self || q.d <= 1 || q.d > p.d - 2) continue; const ax = (sx - q.x / q.d) * q.d / (q.u.rx * 0.95), ay = (sy - q.y / q.d) * q.d / (q.u.ry * 0.95); if (ax * ax + ay * ay < 1) return 1; }
+    return 0;
+  };
+  for (const p of seen) { const u = p.u, k = hidden(p, p); u.occ = (u.occ || 0) + (k - (u.occ || 0)) * 0.18; u.label.material.opacity = u.labelBase * (1 - 0.9 * u.occ); }
+  const tp = {};
+  for (const l of linkMap.values()) {
+    const m = l.__tube, u = m && m.userData; if (!u || !u.tag || !m.visible) continue;
+    const k = hidden(toView(m.position.x, m.position.y, m.position.z, tp), null); u.occ = (u.occ || 0) + (k - (u.occ || 0)) * 0.18;
+    u.tag.material.opacity = (u.lit ? 1 : 0.1) * (1 - 0.9 * u.occ);
+  }
+}
+
+/* animation: blobs face the viewer and breathe, tubes follow them, the cloud follows the graph */
+function tick(t) {
+  const cam = Graph.camera();
+  if (!reduceMotion) UT.value = t * 0.001;
+  cam.matrixWorld.extractBasis(cR, cU, cF);
+  let n0 = 0, cx = 0, cy = 0, cz = 0, lowY = Infinity;
+  for (const n of nodeMap.values()) {
+    const g = n.__obj; if (!g) continue; const u = g.userData;
+    u.face.quaternion.copy(cam.quaternion);
+    if (u.kind === "class" && !reduceMotion) u.ring.rotation.z = t * 0.00035 + (hash(n.id) % 63) / 10;
+    let s = n.id === selectedId ? 1.12 : 1;
+    if (n.pending && !reduceMotion) s *= 1 + 0.07 * Math.sin(t * 0.006);
+    if (n.born && !reduceMotion) { const a = Math.min(1, (t - n.born) / 900); s *= a < 1 ? 0.2 + 0.8 * (1 - Math.pow(1 - a, 3)) + Math.sin(a * Math.PI) * 0.25 : 1; if (a >= 1) n.born = 0; }
+    g.scale.setScalar(s);
+    u.blob.material.uniforms.uHot.value = n.id === selectedId ? 1 : 0;
+    if (n.x != null) { n0++; cx += n.x; cy += n.y; cz += n.z; lowY = Math.min(lowY, n.y - u.ry); }
+  }
+  for (const l of linkMap.values()) placeTube(l);
+  fadeHiddenLabels(cam);
+  // cloud centre and reach ease towards the graph
+  if (n0) {
+    cx /= n0; cy /= n0; cz /= n0; let rad = 60;
+    for (const n of nodeMap.values()) if (n.x != null) rad = Math.max(rad, Math.hypot(n.x - cx, n.y - cy, n.z - cz) + (n.r || 12));
+    const k = 0.04; cloud.c.x += (cx - cloud.c.x) * k; cloud.c.y += (cy - cloud.c.y) * k; cloud.c.z += (cz - cloud.c.z) * k; cloud.r += (rad - cloud.r) * k;
+    cloud.low = cloud.low == null ? lowY : cloud.low + (lowY - cloud.low) * k;
+  }
+  const R = cloud.r, tt = UT.value;
+  motes.material.uniforms.uRadius.value = R * 1.15;
+  motes.material.uniforms.uScale.value = Math.max(0.7, Math.min(1.5, R / 150));
+  for (const p of puffs) {
+    const d = p.userData, w = Math.sin(tt * d.sp + d.ph);
+    p.position.copy(cloud.c).addScaledVector(d.dir, R * (1 + 0.12 * w));
+    p.scale.setScalar(R * d.size * (1.05 + 0.1 * w));
+    const near = Math.min(1, Math.max(0, (p.position.distanceTo(cam.position) - p.scale.x * 0.45) / (p.scale.x * 0.9))); /* thin out when the camera flies through one */
+    p.material.opacity = (isLight() ? 0.13 : 0.11) * (0.8 + 0.2 * w) * near;
+  }
+  floor.position.set(cloud.c.x, (cloud.low ?? cloud.c.y - R) - 26, cloud.c.z);
+  floor.scale.setScalar(R * 1.02); floor.rotation.y = tt * 0.04;
+  const sel = selectedId && nodeMap.get(selectedId);
+  reticle.visible = !!(sel && sel.__obj && sel.x != null);
+  if (reticle.visible) {
+    const u = sel.__obj.userData;
+    reticle.position.set(sel.x, sel.y, sel.z); reticle.quaternion.copy(cam.quaternion); reticle.scale.setScalar(u.rx * 1.42 * sel.__obj.scale.x);
+    reticle.userData.a.rotation.z = tt * 0.9; reticle.userData.b.rotation.z = -tt * 0.6;
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+/* ---------------- Side panels ---------------- */
+function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function renderStats() {
+  const ents = Object.values(model.entities);
+  $("nClasses").textContent = ents.filter((e) => e.kind === "class").length;
+  $("nIndiv").textContent = ents.filter((e) => e.kind === "individual").length;
+  $("nRels").textContent = model.relations.length;
+}
+function relLine(r, outward) {
+  const other = view.entities[outward ? r.target : r.source]; if (!other) return "";
+  const verb = r.type === "property" ? r.label : r.type === "instanceOf" ? (outward ? "is a" : "has instance") : (outward ? "is a kind of" : "has subtype");
+  const pend = view.rflags.get(r.id);
+  return `<li><span class="verb">${esc(verb)}</span> <button data-go="${esc(other.id)}">${esc(other.label)}</button>${pend ? ` <span class="chip pend">${pend === "add" ? "proposed" : "to remove"}</span>` : ""}</li>`;
+}
+function renderDetail() {
+  const el = $("detail");
+  if (viewMode === "formal" && !selectedId) {
+    el.innerHTML = `<p class="sub">OWL / Turtle</p><div class="exports">
+      <button class="btn small" id="copyTtl">Copy Turtle</button><button class="btn small" id="dlTtl">Download Turtle</button><button class="btn small" id="dlJson">Download JSON</button></div>
+      <pre class="ttl" id="ttl"></pre>`;
+    $("ttl").innerHTML = highlightTtl(toTurtle());
+    $("copyTtl").onclick = () => copyText(toTurtle(), $("copyTtl"));
+    $("dlTtl").onclick = () => download(`${slug(model.name) || "ontology"}.ttl.txt`, toTurtle());
+    $("dlJson").onclick = () => download(`${fileBase()}.json`, exportJson());
+    toggleDownloads();
+    return;
+  }
+  if (!selectedId) {
+    const n = Object.keys(model.entities).length;
+    el.innerHTML = n
+      ? `<p class="sub">Inspector</p><p class="desc">Click any node to see its relationships and edit it. Drag to rotate, scroll to zoom.</p>
+         <p class="sub">Most connected</p><ul class="rels">${topConnected().map((e) => `<li><button data-go="${esc(e.id)}">${esc(e.label)}</button> <span class="verb">${e.deg}</span></li>`).join("")}</ul>`
+      : `<p class="sub">Inspector</p><p class="desc">Nothing here yet. Press the microphone and describe something: a business, a process, a family tree, a project.</p>`;
+    wireGo(el); return;
+  }
+  const e = view.entities[selectedId], pend = view.flags.get(selectedId), committed = !!model.entities[selectedId];
+  const out = view.relations.filter((r) => r.source === e.id), inn = view.relations.filter((r) => r.target === e.id);
+  const props = Object.entries(e.props || {});
+  el.innerHTML = `
+    <div><span class="chip ${e.kind}">${e.kind}</span>${pend ? ` <span class="chip pend">${pend === "add" ? "proposed, awaiting approval" : pend === "remove" ? "proposed for removal" : "change proposed"}</span>` : ""}</div>
+    <h2>${esc(e.label)}</h2>
+    ${e.description ? `<p class="desc">${esc(e.description)}</p>` : ""}
+    ${props.length ? `<dl class="props">${props.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : ""}
+    ${out.length ? `<p class="sub">Outgoing</p><ul class="rels">${out.map((r) => relLine(r, true)).join("")}</ul>` : ""}
+    ${inn.length ? `<p class="sub">Incoming</p><ul class="rels">${inn.map((r) => relLine(r, false)).join("")}</ul>` : ""}
+    ${committed ? "" : `<p class="desc">Approve or reject this in the panel at the top right.</p><div class="edit"><button class="btn small" id="closeSel">Close</button></div>`}
+    ${committed ? `<p class="sub">Edit</p>
+    <div class="edit"><input id="renameIn" value="${esc(e.label)}" aria-label="Rename"><button class="btn small" id="renameBtn">Rename</button></div>
+    <div class="edit">
+      <button class="btn small" id="kindBtn">Make ${e.kind === "class" ? "individual" : "class"}</button>
+      <button class="btn small danger" id="delBtn">Delete</button>
+      <button class="btn small" id="closeSel">Close</button>
+    </div>` : ""}`;
+  wireGo(el);
+  $("closeSel").onclick = () => { select(null); $("rightRail").classList.remove("open"); };
+  if (!committed) return;
+  $("renameBtn").onclick = () => { const v = $("renameIn").value.trim(); if (v) commit([{ op: "update_entity", id: e.id, label: v }]); };
+  $("renameIn").onkeydown = (ev) => { if (ev.key === "Enter") $("renameBtn").click(); };
+  $("kindBtn").onclick = () => commit([{ op: "update_entity", id: e.id, kind: e.kind === "class" ? "individual" : "class" }]);
+  $("delBtn").onclick = () => commit([{ op: "remove_entity", id: e.id }]);
+}
+function wireGo(el) { el.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => select(b.dataset.go, true))); }
+function topConnected() {
+  const deg = {}; for (const r of model.relations) { deg[r.source] = (deg[r.source] || 0) + 1; deg[r.target] = (deg[r.target] || 0) + 1; }
+  return Object.entries(deg).filter(([id]) => model.entities[id]).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id, d]) => ({ id, label: model.entities[id].label, deg: d }));
+}
+function setView(m) {
+  viewMode = m;
+  $("viewConcept").setAttribute("aria-pressed", m === "concept"); $("viewFormal").setAttribute("aria-pressed", m === "formal");
+  syncGraph(); Graph.d3ReheatSimulation();
+  setTimeout(fit, 1600);
+}
+$("viewConcept").onclick = () => setView("concept");
+$("viewFormal").onclick = () => setView("formal");
+
+/* ---------------- Turtle (OWL) ---------------- */
+const pascal = (s) => slug(s).split("_").filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join("") || "Thing";
+const camel = (s) => { const p = pascal(s); return p[0].toLowerCase() + p.slice(1); };
+const lit = (s) => `"${String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`;
+function iri(e) { return ":" + (e.kind === "class" ? pascal(e.id) : camel(e.id)); }
+function toTurtle() {
+  const E = model.entities, base = `https://example.org/ontograph/${slug(model.name) || "ontology"}#`;
+  const out = [`@prefix : <${base}> .`, "@prefix owl: <http://www.w3.org/2002/07/owl#> .", "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .", "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .", "", `<${base.slice(0, -1)}> a owl:Ontology ; rdfs:label ${lit(model.name)} .`, ""];
+  const props = [...new Set(model.relations.filter((r) => r.type === "property").map((r) => r.label))];
+  for (const p of props) out.push(`:${camel(p)} a owl:ObjectProperty ; rdfs:label ${lit(p)} .`);
+  const dkeys = [...new Set(Object.values(E).flatMap((e) => (e.kind === "individual" ? Object.keys(e.props || {}) : [])))];
+  for (const k of dkeys) out.push(`:${camel(k)} a owl:DatatypeProperty ; rdfs:label ${lit(k)} .`);
+  if (props.length || dkeys.length) out.push("");
+  for (const e of Object.values(E)) {
+    const lines = [];
+    const rel = model.relations.filter((r) => r.source === e.id && E[r.target]);
+    if (e.kind === "class") {
+      lines.push(`${iri(e)} a owl:Class`, `rdfs:label ${lit(e.label)}`);
+      if (e.description) lines.push(`rdfs:comment ${lit(e.description)}`);
+      for (const [k, v] of Object.entries(e.props || {})) lines.push(`rdfs:comment ${lit(k + ": " + v)}`);
+      for (const r of rel) {
+        const t = E[r.target];
+        if (r.type === "subClassOf") lines.push(`rdfs:subClassOf ${iri(t)}`);
+        else if (r.type === "property") lines.push(`rdfs:subClassOf [ a owl:Restriction ; owl:onProperty :${camel(r.label)} ; ${t.kind === "class" ? "owl:someValuesFrom" : "owl:hasValue"} ${iri(t)} ]`);
+      }
+    } else {
+      const types = rel.filter((r) => r.type === "instanceOf").map((r) => iri(E[r.target]));
+      lines.push(`${iri(e)} a owl:NamedIndividual${types.length ? " , " + types.join(" , ") : ""}`, `rdfs:label ${lit(e.label)}`);
+      if (e.description) lines.push(`rdfs:comment ${lit(e.description)}`);
+      for (const r of rel.filter((r) => r.type === "property")) {
+        const t = E[r.target];
+        if (t.kind === "individual") lines.push(`:${camel(r.label)} ${iri(t)}`);
+        else lines.push(`a [ a owl:Restriction ; owl:onProperty :${camel(r.label)} ; owl:someValuesFrom ${iri(t)} ]`);
+      }
+      for (const [k, v] of Object.entries(e.props || {})) lines.push(`:${camel(k)} ${lit(v)}`);
+    }
+    out.push(lines[0] + (lines.length > 1 ? " ;\n    " + lines.slice(1).join(" ;\n    ") : "") + " .", "");
+  }
+  return out.join("\n");
+}
+function highlightTtl(t) {
+  return esc(t).replace(/(@prefix|\ba\b|owl:\w+|rdfs:\w+)/g, '<span class="k">$1</span>').replace(/(&quot;.*?&quot;)/g, '<span class="s">$1</span>');
+}
+
+/* ---------------- Log + dialogs ---------------- */
+function logLine(text, kind) {
+  const d = document.createElement("div"); d.className = kind || ""; d.textContent = text;
+  const log = $("log"); log.prepend(d); while (log.children.length > 5) log.lastChild.remove();
+  setTimeout(() => d.remove(), 6500);
+}
+function confirmBox(text) {
+  return new Promise((res) => {
+    $("dialogText").textContent = text; $("dialog").classList.add("open"); $("dialogYes").focus();
+    const done = (v) => { $("dialog").classList.remove("open"); res(v); };
+    $("dialogYes").onclick = () => done(true); $("dialogNo").onclick = () => done(false);
+  });
+}
+async function copyText(text, btn) {
+  try { await navigator.clipboard.writeText(text); flash(btn, "Copied"); } catch { flash(btn, "Copy blocked"); }
+}
+function flash(btn, msg) { const o = btn.textContent; btn.textContent = msg; setTimeout(() => (btn.textContent = o), 1400); }
+
+/* ---------------- Claude + voice ---------------- */
+const cap = { sample: null, dictation: null, db: null, user: null, downloads: null };
+const use = (name) => (window.claude && typeof window.claude.use === "function" ? window.claude.use(name).catch(() => null) : Promise.resolve(null));
+
+function ontologyText() {
+  const ents = Object.values(view.entities).slice(0, 600);
+  const rels = view.relations.slice(0, 1200);
+  return [
+    "Entities (id | label | kind):",
+    ents.length ? ents.map((e) => `${e.id} | ${e.label} | ${e.kind}`).join("\n") : "(none yet)",
+    "Relations:",
+    rels.length ? rels.map((r) => `${r.source} --${r.type === "property" ? "[" + r.label + "]" : r.type}--> ${r.target}`).join("\n") : "(none yet)"
+  ].join("\n");
+}
+const OPS_SPEC = `Ops (JSON objects):
+{"op":"add_entity","id":"snake_case_id","label":"Display Name","kind":"class"|"individual","description":"only if the speaker gave one"}
+{"op":"update_entity","id":"existing_id","label":"New Name","kind":"class"|"individual","description":"..."}
+{"op":"remove_entity","id":"existing_id"}
+{"op":"add_relation","source":"id","target":"id","type":"subClassOf"|"instanceOf"|"property","label":"verb phrase, property only"}
+{"op":"remove_relation","source":"id","target":"id","label":"optional"}
+{"op":"merge","from":"id","into":"id"}
+{"op":"set_property","id":"id","key":"short name","value":"text"}
+{"op":"rename_map","name":"..."}`;
+
+function livePrompt(newSpeech, recent) {
+  return `You turn live speech into edits on an ontology that is drawn as a 3D graph. Reply with JSON only.
+
+CURRENT ONTOLOGY
+${ontologyText()}
+
+EARLIER SPEECH (already applied; use only to resolve "it", "they", "that one"):
+${recent || "(none)"}
+
+NEW SPEECH (apply this):
+"${newSpeech}"
+
+Reply exactly as {"ops":[...],"focus":"id of the main thing just discussed, or null","note":"at most 10 words on what changed"}
+${OPS_SPEC}
+
+Rules:
+- Model only what the speaker says or plainly implies. Never add outside facts.
+- Reuse existing ids when the speaker means something already present (synonyms, plurals, pronouns). New ids are lowercase snake_case.
+- kind "class" is a type or category (Hospital, Customer). kind "individual" is one specific named thing (Northfield General, Acme Ltd, Sarah).
+- "X is a kind/type of Y" is subClassOf. "X is a Y" with X specific is instanceOf. Any other link is "property" with a short lowercase verb label ("operates", "is funded by"), source to target in the direction spoken. "Each A has B" is A --[has]--> B.
+- Values such as budgets, dates, counts or colours become set_property on the entity, not new entities.
+- Classes use singular Title Case labels.
+- Follow spoken commands: delete, remove, rename, connect, link, merge, "X is not a Y".
+- If the speech adds nothing (filler, a question, thinking aloud) reply {"ops":[],"focus":null,"note":""}.`;
+}
+function refinePrompt() {
+  return `Review this ontology and return JSON edits that fix its structure. Reply with JSON only.
+
+ONTOLOGY
+${ontologyText()}
+
+Reply exactly as {"ops":[...],"note":"at most 12 words summarising the fixes"}
+${OPS_SPEC}
+
+Fix only these problems:
+- Duplicates or synonyms: merge them into the clearest one.
+- Wrong kind: a specific named thing marked class, or a general category marked individual.
+- Reversed or circular subClassOf links, and self-links.
+- Class labels that are plural or inconsistently cased: make them singular Title Case.
+- Where three or more sibling classes clearly share an obvious generic parent that is missing, you may add that parent class and subClassOf links.
+Do not add facts the ontology does not already imply. If nothing needs fixing reply {"ops":[],"note":"Nothing to tidy"}.`;
+}
+
+const recentSpeech = [];
+let pending = [], busy = false, flushTimer = null, liveCtl = null;
+
+function addUtterance(text) {
+  $("emptyHint")?.remove();
+  const div = document.createElement("div"); div.className = "utt";
+  div.innerHTML = `<p></p><div class="meta">queued</div>`; div.querySelector("p").textContent = text;
+  $("transcript").append(div); $("transcript").scrollTop = 1e9;
+  while ($("transcript").children.length > 40) $("transcript").firstChild.remove();
+  return div;
+}
+function setUtt(div, cls, meta) { div.className = "utt " + cls; div.querySelector(".meta").textContent = meta; }
+
+function enqueue(text) {
+  text = clean(text, 1200); if (!text) return;
+  pending.push({ text, el: addUtterance(text) });
+  clearTimeout(flushTimer); flushTimer = setTimeout(flush, 700);
+}
+
+function localCommand(raw) {
+  const t = raw.toLowerCase().replace(/[.!?,]+$/g, "").replace(/\bplease\b/g, "").trim();
+  if (/^(approve|approved|accept|accepted|yes|yes please|confirm|ok|okay|add it|keep it)$/.test(t)) { if (!proposals.length) return "Nothing waiting for approval"; approve(proposals[0]); return "Approved"; }
+  if (/^(approve|accept) (all|everything)$/.test(t)) { if (!proposals.length) return "Nothing waiting for approval"; const n = proposals.length; [...proposals].forEach((p) => approve(p)); return `Approved ${n} proposal${n > 1 ? "s" : ""}`; }
+  if (/^(reject|rejected|no|nope|decline|discard|cancel that|drop it)$/.test(t)) { if (!proposals.length) return "Nothing waiting for approval"; reject(proposals[0]); return "Rejected"; }
+  if (/^(reject|decline|discard) (all|everything)$/.test(t)) { if (!proposals.length) return "Nothing waiting for approval"; [...proposals].forEach((p) => reject(p)); return "Rejected all"; }
+  if (/^(undo|undo that|scratch that|go back)$/.test(t)) { undo(); return "Undone"; }
+  if (/^(clear|clear (it|everything|all|the map)|start over|start again)$/.test(t)) { clearAll(); return "Cleared (say undo to bring it back)"; }
+  if (/^(zoom out|fit|fit (the )?view|show (me )?everything|reset (the )?view)$/.test(t)) { select(null); touched = false; fit(); return "Showing everything"; }
+  if (/^(switch to |show (me )?)?(the )?formal( view| mode| ontology)?$/.test(t)) { setView("formal"); return "Formal view"; }
+  if (/^(switch to |show (me )?)?(the )?concept( map)?( view| mode)?$/.test(t)) { setView("concept"); return "Concept view"; }
+  if (/^(stop listening|stop)$/.test(t)) { stopDictation(); return "Stopped listening"; }
+  if (/^save( (it|this|that|now|the (map|ontology)))?$/.test(t)) { saveNow(); return "Saving"; }
+  if (/^(export|download)( (it|this|that|the (map|ontology)))?$/.test(t)) { openExport(); return "Export options opened"; }
+  if (/^import( (a |an )?(file|map|ontology))?$/.test(t)) { openImport(); return "Import opened"; }
+  if (/^(switch to |go to |go |turn on )?(the )?(light|day)( mode| theme)?$/.test(t)) { setTheme("light"); return "Light mode"; }
+  if (/^(switch to |go to |go |turn on )?(the )?(dark|night)( mode| theme)?$/.test(t)) { setTheme("dark"); return "Dark mode"; }
+  const m = t.match(/^(focus on|go to|zoom (in )?(on|to)|select|show me) (the )?(.+)$/);
+  if (m) { const id = findEntityByWords(m[5]); if (id) { select(id, true); return `Focused on ${model.entities[id].label}`; } }
+  return null;
+}
+function findEntityByWords(w) {
+  const s = slug(w).replace(/s$/, "");
+  const ents = Object.values(model.entities);
+  return (ents.find((e) => slug(e.label) === slug(w)) || ents.find((e) => slug(e.label).replace(/s$/, "") === s) || ents.find((e) => slug(e.label).includes(s)))?.id || null;
+}
+
+async function flush() {
+  if (busy || !pending.length) return;
+  const batch = pending; pending = [];
+  // commands are handled on the page, instantly
+  const rest = [];
+  for (const u of batch) { const r = localCommand(u.text); if (r) setUtt(u.el, "done", r); else rest.push(u); }
+  if (!rest.length) return;
+  if (!cap.sample) { rest.forEach((u) => setUtt(u.el, "fail", "Claude isn't available here, so speech can't be structured")); return; }
+  const text = rest.map((u) => u.text).join(" ");
+  busy = true; rest.forEach((u) => setUtt(u.el, "work", "structuring…")); setEngine("Structuring…");
+  liveCtl = new AbortController();
+  try {
+    const res = await cap.sample.json(livePrompt(text, recentSpeech.slice(-4).join("\n")), { modelTier: $("speed").value, signal: liveCtl.signal });
+    const last = rest[rest.length - 1].el;
+    const n = propose(res && res.ops, res && res.note, text, last);
+    recentSpeech.push(text); if (recentSpeech.length > 8) recentSpeech.shift();
+    rest.forEach((u) => setUtt(u.el, n ? "work" : "", n ? "awaiting your approval (top right)" : "nothing to add"));
+    setEngine("");
+  } catch (e) {
+    const code = e && e.code;
+    if (code === "cancelled") { rest.forEach((u) => setUtt(u.el, "", "cancelled")); setEngine(""); }
+    else {
+      const msg = errorCopy(code);
+      rest.forEach((u, i) => { setUtt(u.el, "fail", msg); if (i === rest.length - 1 && !["not_granted", "sampling_disabled", "not_declared"].includes(code)) addRetry(u.el, text); });
+      setEngine("");
+      if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"].includes(code)) { cap.sample = null; showVoiceNotice("Claude access is off for this page, so speech can't be turned into an ontology. You can still explore, edit and export the current one.", true); }
+    }
+  } finally {
+    busy = false; liveCtl = null;
+    if (pending.length) flush();
+  }
+}
+function addRetry(el, text) {
+  const b = document.createElement("button"); b.className = "btn small"; b.textContent = "Try again"; b.style.marginTop = "4px";
+  b.onclick = () => { b.remove(); el.remove(); enqueue(text); };
+  el.append(b);
+}
+function errorCopy(code) {
+  return ({
+    rate_limited: "Claude is busy right now. Wait a moment, then try again.",
+    invalid_json: "Claude's reply couldn't be read. Try again.",
+    refused: "Claude declined this one. Try wording it differently.",
+    session_expired: "Your Claude session expired. Sign in again, then retry.",
+    not_granted: "Claude access was declined for this page.",
+    sampling_disabled: "Claude isn't available on this account.",
+    empty_completion: "Claude returned nothing. Try rephrasing."
+  })[code] || "Couldn't reach Claude. Try again.";
+}
+function setEngine(t) { $("engineState").textContent = t; }
+function showVoiceNotice(text, warn) { const n = $("voiceNotice"); n.hidden = false; n.textContent = text; n.classList.toggle("warn", !!warn); }
+
+/* Tidy up (careful model, one pass) */
+let refineCtl = null;
+$("refineBtn").onclick = async () => {
+  const btn = $("refineBtn");
+  if (refineCtl) { refineCtl.abort(); return; }
+  if (!cap.sample) { logLine("Claude isn't available on this page", "note"); return; }
+  if (!Object.keys(model.entities).length) { logLine("Nothing to tidy yet", "note"); return; }
+  refineCtl = new AbortController(); btn.textContent = "Stop tidying"; setEngine("Tidying, up to a minute…");
+  try {
+    const res = await cap.sample.json(refinePrompt(), { modelTier: "default", signal: refineCtl.signal, cache: false });
+    const n = propose(res && res.ops, (res && res.note) || "Tidy up", "Tidy up: " + ((res && res.note) || "structural fixes"), null);
+    if (!n) logLine((res && res.note) || "Nothing to tidy", "note");
+  } catch (e) { if (e && e.code !== "cancelled") logLine(errorCopy(e && e.code), "note"); }
+  finally { refineCtl = null; btn.textContent = "Tidy up"; setEngine(""); }
+};
+
+/* Dictation */
+let listening = false, partialEl = null, lastHeard = 0, autoStopped = false;
+function setMic(state, sub) {
+  listening = state === "listening";
+  $("mic").classList.toggle("on", listening); $("mic").setAttribute("aria-pressed", listening); $("dock").classList.toggle("listening", listening);
+  $("mic").setAttribute("aria-label", listening ? "Stop listening" : "Start listening");
+  $("micState").innerHTML = listening ? `<b>Listening</b><span>${esc(sub || "stops after 3 seconds of silence")}</span>` : `<b>Press to speak</b><span>${sub ? esc(sub) : 'or press <span class="kbd">Space</span>'}</span>`;
+}
+function showPartial(text) {
+  if (!text) { partialEl?.remove(); partialEl = null; return; }
+  if (!partialEl) { $("emptyHint")?.remove(); partialEl = document.createElement("div"); partialEl.className = "utt partial"; $("transcript").append(partialEl); }
+  partialEl.textContent = text; $("transcript").scrollTop = 1e9;
+}
+function toggleDictation() {
+  const d = cap.dictation; if (!d) return;
+  if (listening) { stopDictation(); return; }
+  d.start().catch((e) => {
+    const c = e && e.code;
+    if (c === "not_granted") { $("mic").disabled = true; showVoiceNotice("Microphone access was declined. You can still type sentences below.", true); }
+    else if (c !== "dismissed") setMic("idle", "Couldn't start the microphone. Try again.");
+  });
+}
+function stopDictation() { if (cap.dictation && listening) cap.dictation.stop().catch(() => {}); }
+$("mic").onclick = toggleDictation;
+addEventListener("keydown", (ev) => {
+  if (ev.code !== "Space" || ev.repeat) return;
+  const tag = (ev.target.tagName || "").toLowerCase();
+  if (["input", "textarea", "select", "button"].includes(tag) || $("dialog").classList.contains("open") || ioIsOpen()) return;
+  if (!cap.dictation) return;
+  ev.preventDefault(); toggleDictation();
+});
+$("typeForm").onsubmit = (ev) => { ev.preventDefault(); const v = $("typeInput").value; $("typeInput").value = ""; enqueue(v); };
+
+/* ---------------- Toolbar ---------------- */
+$("undoBtn").onclick = undo;
+$("fitBtn").onclick = () => { select(null); touched = false; fit(); };
+function clearAll() { if (!Object.keys(model.entities).length) return; commit(Object.keys(model.entities).map((id) => ({ op: "remove_entity", id })), "Cleared the ontology"); }
+$("clearBtn").onclick = async () => { if (await confirmBox("Clear every node and relation from this ontology? You can undo this.")) clearAll(); };
+$("detailsBtn").onclick = () => $("rightRail").classList.toggle("open");
+$("mapName").onchange = () => { const v = clean($("mapName").value, 80) || "Untitled ontology"; if (v !== model.name) { undoStack.push(snapshot()); model.name = v; $("undoBtn").disabled = false; afterChange(); } };
+
+/* ---------------- Saving ---------------- */
+let uid = null, currentMapId = null, mapsList = [], dirty = false, saving = false, saveTimer = null, listLoaded = false;
+function setSave(t) { $("saveState").textContent = t; $("deleteBtn").disabled = !currentMapId; }
+function markDirty() { dirty = true; setSave("Unsaved changes"); clearTimeout(saveTimer); saveTimer = setTimeout(save, 1500); }
+const newId = () => "m" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+async function save() {
+  if (saving || !dirty) return;
+  saving = true; dirty = false; setSave("Saving…");
+  const body = { name: model.name, updatedAt: Date.now(), entities: model.entities, relations: model.relations };
+  try {
+    if (!currentMapId) currentMapId = newId();
+    if (cap.db && uid) {
+      await cap.db.collection("data/users/" + uid).doc(currentMapId).set(body);
+      setSave("Saved to your account");
+    } else {
+      const all = readLocal(); all[currentMapId] = body; localStorage.setItem("ontograph.maps", JSON.stringify(all));
+      mapsList = Object.entries(all).map(([id, m]) => ({ id, name: m.name, updatedAt: m.updatedAt })).sort((a, b) => b.updatedAt - a.updatedAt);
+      renderMapSelect(); setSave("Saved in this browser only");
+    }
+  } catch (e) {
+    dirty = true;
+    setSave(e && e.code === "quota_exceeded" ? "Storage full: delete old ontologies" : "Not saved: will retry on next change");
+  } finally { saving = false; if (dirty && !/full|retry/.test($("saveState").textContent)) save(); }
+}
+function readLocal() { try { return JSON.parse(localStorage.getItem("ontograph.maps") || "{}"); } catch { return {}; } }
+function renderMapSelect() {
+  const sel = $("mapSelect");
+  const opts = [`<option value="">${mapsList.length ? "Open…" : "No saved maps"}</option>`].concat(mapsList.map((m) => `<option value="${esc(m.id)}"${m.id === currentMapId ? " selected" : ""}>${esc(m.name || "Untitled")}</option>`));
+  sel.innerHTML = opts.join(""); $("deleteBtn").disabled = !currentMapId;
+}
+async function loadMap(id) {
+  try {
+    let body;
+    if (cap.db && uid) { const s = await cap.db.collection("data/users/" + uid).doc(id).get(); body = s.exists ? s.data() : null; }
+    else body = readLocal()[id];
+    if (!body) return;
+    model = { name: body.name || "Untitled ontology", entities: JSON.parse(JSON.stringify(body.entities || {})), relations: JSON.parse(JSON.stringify(body.relations || [])) };
+    currentMapId = id; isExample = false; undoStack = []; $("undoBtn").disabled = true; selectedId = null; dirty = false;
+    proposals = []; renderApprovals();
+    nodeMap.clear(); linkMap.clear(); $("mapName").value = model.name;
+    syncGraph(); renderMapSelect(); setSave(cap.db && uid ? "Saved to your account" : "Saved in this browser only");
+    setTimeout(fit, 1800);
+  } catch (e) { setSave("Couldn't open that ontology"); }
+}
+$("mapSelect").onchange = async () => { const id = $("mapSelect").value; if (!id || id === currentMapId) return; if (dirty) await save(); loadMap(id); };
+$("newMap").onclick = async () => {
+  if (dirty) await save();
+  model = blank(); currentMapId = null; isExample = false; undoStack = []; $("undoBtn").disabled = true; selectedId = null; dirty = false;
+  proposals = []; renderApprovals();
+  nodeMap.clear(); linkMap.clear(); $("mapName").value = model.name; syncGraph(); renderMapSelect(); setSave("New, saves when you add something");
+  $("mapName").focus(); $("mapName").select();
+};
+
+/* ---------------- Downloads ---------------- */
+const isStandalone = () => !window.claude; /* opened as a plain page or file, outside Claude */
+const canDownload = () => !!cap.downloads || isStandalone();
+function toggleDownloads() { document.querySelectorAll("#dlTtl,#dlJson").forEach((b) => (b.hidden = !canDownload())); }
+async function download(filename, data) {
+  if (cap.downloads) {
+    try { await cap.downloads.save({ filename, data }); return true; }
+    catch (e) { if (e && e.code !== "declined") logLine("Download isn't available here; use Copy instead", "note"); return false; }
+  }
+  if (!isStandalone()) return false;
+  // a plain browser page saves files itself
+  const name = filename.replace(/\.ttl\.txt$/, ".ttl");
+  const url = URL.createObjectURL(new Blob([data], { type: /\.json$/.test(name) ? "application/json" : "text/plain" }));
+  const a = document.createElement("a"); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  return true;
+}
+
+/* ---------------- Export + import ---------------- */
+const fileBase = () => slug(model.name) || "ontology";
+function exportData() {
+  return {
+    format: "ontograph", version: 1, name: model.name, exportedAt: new Date().toISOString(),
+    entities: Object.values(model.entities).map((e) => ({ id: e.id, label: e.label, kind: e.kind, ...(e.description ? { description: e.description } : {}), ...(e.props && Object.keys(e.props).length ? { props: e.props } : {}) })),
+    relations: model.relations.map((r) => ({ source: r.source, target: r.target, type: r.type, ...(r.type === "property" ? { label: r.label } : {}) }))
+  };
+}
+const exportJson = () => JSON.stringify(exportData(), null, 2);
+
+const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+const IMPORT_MAX_BYTES = 8 * 1024 * 1024, IMPORT_MAX_ENTITIES = 5000, IMPORT_MAX_RELATIONS = 20000;
+
+function modelFromJson(data) {
+  if (!data || typeof data !== "object") throw new Error("This isn't an Ontograph file.");
+  const rawE = Array.isArray(data.entities) ? data.entities : data.entities && typeof data.entities === "object" ? Object.values(data.entities) : null;
+  if (!rawE) throw new Error("This isn't an Ontograph file: it has no list of entities.");
+  if (rawE.length > IMPORT_MAX_ENTITIES) throw new Error(`That file has ${rawE.length} entities; the limit is ${IMPORT_MAX_ENTITIES}.`);
+  const M = { name: clean(data.name, 80) || "Imported ontology", entities: {}, relations: [] };
+  for (const e of rawE) {
+    if (!e || typeof e !== "object") continue;
+    const id = slug(e.id || e.label); if (!id || own(M.entities, id)) continue;
+    const ent = { id, label: clean(e.label, 60) || humanize(id), kind: e.kind === "individual" ? "individual" : "class" };
+    if (e.description) ent.description = clean(e.description, 280);
+    if (e.props && typeof e.props === "object") {
+      const p = {};
+      for (const [k, v] of Object.entries(e.props).slice(0, 60)) { const key = clean(k, 40); if (key && v != null && v !== "") p[key] = clean(v, 120); }
+      if (Object.keys(p).length) ent.props = p;
+    }
+    M.entities[id] = ent;
+  }
+  const seen = new Set(), end = (v) => slug(v && typeof v === "object" ? v.id : v);
+  for (const r of (Array.isArray(data.relations) ? data.relations : []).slice(0, IMPORT_MAX_RELATIONS)) {
+    if (!r || typeof r !== "object") continue;
+    const s = end(r.source), o = end(r.target); if (!own(M.entities, s) || !own(M.entities, o) || s === o) continue;
+    const type = ["subClassOf", "instanceOf", "property"].includes(r.type) ? r.type : "property";
+    const label = type === "property" ? clean(r.label, 40).toLowerCase() || "related to" : "";
+    const id = relId(s, type, o, label); if (seen.has(id)) continue; seen.add(id);
+    M.relations.push({ id, source: s, target: o, type, label });
+  }
+  if (!Object.keys(M.entities).length) throw new Error("That file has no entities in it.");
+  return M;
+}
+
+/* Turtle: a small reader for what Ontograph exports, tolerant enough for simple OWL files */
+const NS = { rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#", rdfs: "http://www.w3.org/2000/01/rdf-schema#", owl: "http://www.w3.org/2002/07/owl#", xsd: "http://www.w3.org/2001/XMLSchema#" };
+function parseTurtle(src) {
+  const err = (m) => { throw new Error(m); };
+  const toks = [], n = src.length; let i = 0;
+  while (i < n) {
+    const c = src[i];
+    if (c <= " ") { i++; continue; }
+    if (c === "#") { while (i < n && src[i] !== "\n") i++; continue; }
+    if (c === "<") { const j = src.indexOf(">", i); if (j < 0) err("An <address> is never closed."); toks.push({ t: "iri", v: src.slice(i + 1, j) }); i = j + 1; continue; }
+    if (c === '"' || c === "'") {
+      const long = src.startsWith(c + c + c, i), q = long ? c + c + c : c; let j = i + q.length, s = "";
+      for (;;) {
+        if (j >= n) err("A quoted text is never closed.");
+        if (src[j] === "\\") {
+          const e = src[j + 1];
+          if (e === "u") { s += String.fromCharCode(parseInt(src.substr(j + 2, 4), 16) || 63); j += 6; continue; }
+          if (e === "U") { s += String.fromCodePoint(Math.min(parseInt(src.substr(j + 2, 8), 16) || 63, 0x10ffff)); j += 10; continue; }
+          s += ({ n: "\n", t: "\t", r: "\r", b: "\b", f: "\f" })[e] ?? (e || ""); j += 2; continue;
+        }
+        if (src.startsWith(q, j)) { j += q.length; break; }
+        if (!long && src[j] === "\n") err("A quoted text is never closed.");
+        s += src[j++];
+      }
+      if (src[j] === "@") { j++; while (j < n && /[A-Za-z0-9-]/.test(src[j])) j++; }
+      else if (src.startsWith("^^", j)) { j += 2; if (src[j] === "<") { const k = src.indexOf(">", j); if (k < 0) err("An <address> is never closed."); j = k + 1; } else while (j < n && !/[\s;,\])]/.test(src[j])) j++; while (j > 0 && src[j - 1] === ".") j--; }
+      toks.push({ t: "lit", v: s }); i = j; continue;
+    }
+    if (".;,[]()".includes(c)) { toks.push({ t: c }); i++; continue; }
+    let j = i; while (j < n && !/[\s;,\[\]()<>"']/.test(src[j])) j++;
+    let w = src.slice(i, j); while (w.length > 1 && w.endsWith(".")) { w = w.slice(0, -1); j--; }
+    toks.push({ t: "word", v: w }); i = j;
+  }
+  const prefixes = {}, triples = []; let p = 0, bn = 0, base = "";
+  const peek = () => toks[p], next = () => toks[p++] || err("The text ends in the middle of a statement.");
+  const expand = (w) => {
+    const k = w.indexOf(":"); if (k < 0) err(`Didn't understand “${w.slice(0, 30)}”.`);
+    const pre = w.slice(0, k); if (pre === "_") return "_:" + w.slice(k + 1);
+    if (!own(prefixes, pre)) err(`The prefix “${pre}:” is used but never declared.`);
+    return prefixes[pre] + w.slice(k + 1).replace(/\\(.)/g, "$1");
+  };
+  const iriOf = (tk) => (tk.t === "iri" ? (/^[a-z][a-z0-9+.-]*:/i.test(tk.v) ? tk.v : base + tk.v) : expand(tk.v));
+  function node(asObject) {
+    const tk = next();
+    if (tk.t === "iri") return { iri: iriOf(tk) };
+    if (tk.t === "lit") { if (!asObject) err("A statement starts with quoted text."); return { lit: tk.v }; }
+    if (tk.t === "[") { const b = { iri: "_:b" + ++bn }; if (peek() && peek().t === "]") { p++; return b; } predObjList(b); if (next().t !== "]") err("A [ bracket is never closed."); return b; }
+    if (tk.t === "(") { while (peek() && peek().t !== ")") node(true); next(); return { iri: "_:b" + ++bn }; }
+    if (tk.t === "word") { if (asObject && (/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(tk.v) || tk.v === "true" || tk.v === "false")) return { lit: tk.v }; return { iri: expand(tk.v) }; }
+    return err(`Didn't expect “${tk.t}” there.`);
+  }
+  function predObjList(subj) {
+    for (;;) {
+      const tk = next(); let pred;
+      if (tk.t === "word" && tk.v === "a") pred = NS.rdf + "type"; else if (tk.t === "iri" || tk.t === "word") pred = iriOf(tk); else err("A property name is missing.");
+      for (;;) { triples.push({ s: subj.iri, p: pred, o: node(true) }); if (peek() && peek().t === ",") { p++; continue; } break; }
+      if (!peek() || peek().t !== ";") break;
+      while (peek() && peek().t === ";") p++;
+      if (!peek() || peek().t === "." || peek().t === "]") break;
+    }
+  }
+  while (p < toks.length) {
+    const tk = peek();
+    if (tk.t === "word" && /^@?prefix$/i.test(tk.v)) { p++; const name = next(), iri = next(); if (name.t !== "word" || !name.v.endsWith(":") || iri.t !== "iri") err("A prefix line is malformed."); prefixes[name.v.slice(0, -1)] = iri.v; if (peek() && peek().t === ".") p++; continue; }
+    if (tk.t === "word" && /^@?base$/i.test(tk.v)) { p++; const iri = next(); if (iri.t !== "iri") err("A base line is malformed."); base = iri.v; if (peek() && peek().t === ".") p++; continue; }
+    const s = node(false);
+    if (peek() && peek().t === "." && s.iri.startsWith("_:")) { p++; continue; }
+    predObjList(s);
+    if (next().t !== ".") err("A statement is missing its full stop.");
+    if (triples.length > 200000) err("That file is too large to import.");
+  }
+  return triples;
+}
+function modelFromTurtle(text) {
+  let triples;
+  try { triples = parseTurtle(text); } catch (e) { throw new Error("That isn't an Ontograph file or Turtle this page can read. " + ((e && e.message) || "")); }
+  const { rdf, rdfs, owl } = NS, TYPE = rdf + "type";
+  const bySubj = new Map(); for (const t of triples) { if (!bySubj.has(t.s)) bySubj.set(t.s, []); bySubj.get(t.s).push(t); }
+  const get = (s, p) => (bySubj.get(s) || []).filter((t) => t.p === p).map((t) => t.o);
+  const types = (s) => get(s, TYPE).map((o) => o.iri).filter(Boolean);
+  const builtin = (iri) => Object.values(NS).some((ns) => iri.startsWith(ns));
+  const named = (o) => !!(o && o.iri) && !o.iri.startsWith("_:") && !builtin(o.iri);
+  const isProp = (iri) => types(iri).some((t) => /Property$/.test(t));
+  const labelOf = (iri) => { const l = get(iri, rdfs + "label").find((o) => o.lit != null); return l ? l.lit : ""; };
+  const local = (iri) => { let s = (/[^#/:]*$/.exec(iri) || [""])[0]; try { s = decodeURIComponent(s); } catch (e) { /* keep as written */ } return s; };
+  const words = (s) => s.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2").replace(/[_-]+/g, " ");
+
+  // pass 1: what is a class, what is an individual
+  const kinds = new Map(); let name = "";
+  const mark = (iri, kind) => { if (iri.startsWith("_:") || builtin(iri)) return; if (kind === "class" || !kinds.has(iri)) kinds.set(iri, kind); };
+  for (const [s, ts] of bySubj) {
+    const ty = types(s);
+    if (ty.includes(owl + "Ontology")) { name = labelOf(s) || name; continue; }
+    if (ty.some((t) => /Property$/.test(t))) continue;
+    if (ty.includes(owl + "Class") || ty.includes(rdfs + "Class")) mark(s, "class");
+    else if (ty.includes(owl + "NamedIndividual") || ty.some((t) => !builtin(t))) mark(s, "individual");
+    for (const t of ts) {
+      if (t.p === rdfs + "subClassOf") { mark(s, "class"); if (named(t.o)) mark(t.o.iri, "class"); }
+      else if (t.p === TYPE) { if (named(t.o)) mark(t.o.iri, "class"); }
+      else if ([owl + "someValuesFrom", owl + "allValuesFrom"].includes(t.p)) { if (named(t.o)) mark(t.o.iri, "class"); }
+      else if (t.p === owl + "hasValue") { if (named(t.o)) mark(t.o.iri, "individual"); }
+      else if (!builtin(t.p)) { mark(s, "individual"); if (named(t.o)) mark(t.o.iri, "individual"); }
+    }
+  }
+  for (const iri of [...kinds.keys()]) if (isProp(iri)) kinds.delete(iri);
+  if (!kinds.size) throw new Error("No classes or individuals were found in that Turtle.");
+  if (kinds.size > IMPORT_MAX_ENTITIES) throw new Error(`That file has ${kinds.size} entities; the limit is ${IMPORT_MAX_ENTITIES}.`);
+
+  // pass 2: entities, then relations and properties
+  const M = { name: clean(name, 80) || "Imported ontology", entities: {}, relations: [] }, idOf = new Map();
+  for (const [iri, kind] of kinds) {
+    const stem = slug(words(local(iri))) || "thing"; let id = stem, k = 2;
+    while (own(M.entities, id)) id = stem.slice(0, 44) + "_" + k++;
+    M.entities[id] = { id, label: clean(labelOf(iri), 60) || humanize(id), kind }; idOf.set(iri, id);
+  }
+  const propLabel = (iri) => clean(labelOf(iri) || words(local(iri)), 40).toLowerCase() || "related to";
+  const seen = new Set();
+  const addRel = (s, type, o, label) => {
+    const a = idOf.get(s), b = idOf.get(o); if (!a || !b || a === b || M.relations.length >= IMPORT_MAX_RELATIONS) return;
+    const lab = type === "property" ? label : "", id = relId(a, type, b, lab); if (seen.has(id)) return; seen.add(id);
+    if (type === "instanceOf") { M.entities[a].kind = "individual"; M.entities[b].kind = "class"; }
+    M.relations.push({ id, source: a, target: b, type, label: lab });
+  };
+  const restriction = (b) => {
+    const on = get(b, owl + "onProperty").find((o) => o.iri);
+    const tgt = [owl + "someValuesFrom", owl + "allValuesFrom", owl + "hasValue"].flatMap((q) => get(b, q)).find((o) => o.iri && idOf.has(o.iri));
+    return on && tgt ? { prop: on.iri, target: tgt.iri } : null;
+  };
+  for (const [s, ts] of bySubj) {
+    const sid = idOf.get(s);
+    if (!sid) {
+      if (types(s).includes(owl + "ObjectProperty")) for (const d of get(s, rdfs + "domain")) for (const r of get(s, rdfs + "range")) if (d.iri && r.iri) addRel(d.iri, "property", r.iri, propLabel(s));
+      continue;
+    }
+    const ent = M.entities[sid];
+    for (const t of ts) {
+      const o = t.o;
+      if (t.p === rdfs + "label") continue;
+      if (t.p === rdfs + "comment") {
+        if (o.lit == null) continue;
+        const m = ent.kind === "class" && /^([A-Za-z0-9][\w \-]{0,38}): (\S[\s\S]*)$/.exec(o.lit); /* Ontograph writes a class's properties as "key: value" comments */
+        if (m) (ent.props = ent.props || {})[clean(m[1], 40)] = clean(m[2], 120); else if (!ent.description) ent.description = clean(o.lit, 280);
+        continue;
+      }
+      if (t.p === rdfs + "subClassOf" || t.p === TYPE) {
+        if (o.iri && o.iri.startsWith("_:")) { const r = restriction(o.iri); if (r) addRel(s, "property", r.target, propLabel(r.prop)); }
+        else if (o.iri && idOf.has(o.iri)) addRel(s, t.p === TYPE ? "instanceOf" : "subClassOf", o.iri);
+        continue;
+      }
+      if (builtin(t.p)) continue; /* other OWL and RDFS vocabulary is not carried over */
+      if (o.lit != null) { const key = clean(labelOf(t.p) || words(local(t.p)), 40); if (key) (ent.props = ent.props || {})[key] = clean(o.lit, 120); }
+      else if (o.iri && idOf.has(o.iri)) addRel(s, "property", o.iri, propLabel(t.p));
+    }
+  }
+  return M;
+}
+function parseImport(text) {
+  text = String(text || "").replace(/^﻿/, "").trim();
+  if (!text) throw new Error("There is nothing in that file.");
+  if (text[0] === "{") {
+    let data; try { data = JSON.parse(text); } catch (e) { throw new Error("That JSON couldn't be read. The file may be cut short or edited by hand."); }
+    return modelFromJson(data);
+  }
+  return modelFromTurtle(text);
+}
+
+function uniqueName(name) {
+  const names = new Set(mapsList.map((m) => m.name)); if (!names.has(name)) return name;
+  let i = 2; while (names.has(`${name} (${i})`)) i++;
+  return `${name.slice(0, 74)} (${i})`;
+}
+function showModel(M, id) {
+  model = M; currentMapId = id; isExample = false; undoStack = []; $("undoBtn").disabled = true; selectedId = null; dirty = false; clearTimeout(saveTimer);
+  proposals = []; renderApprovals();
+  nodeMap.clear(); linkMap.clear(); familyIndex.clear(); $("mapName").value = model.name;
+  syncGraph(); renderMapSelect(); touched = false;
+}
+async function openImported(M) {
+  if (dirty) await save();
+  M.name = uniqueName(M.name);
+  showModel(M, null);
+  setTimeout(fit, 1800);
+  dirty = true; await save(); /* an import is kept straight away, as a new saved ontology */
+  const n = Object.keys(M.entities).length, r = M.relations.length;
+  logLine(`Imported ${n} thing${n === 1 ? "" : "s"} and ${r} relation${r === 1 ? "" : "s"}`, "note");
+}
+
+/* export / import dialog */
+let ioOpener = null;
+const ioIsOpen = () => $("ioDialog").classList.contains("open");
+function openIo(html) {
+  if (!ioIsOpen()) ioOpener = document.activeElement;
+  $("ioCard").innerHTML = html; $("ioDialog").classList.add("open");
+  $("ioClose").onclick = closeIo;
+  return $("ioCard");
+}
+function closeIo() { $("ioDialog").classList.remove("open"); $("ioCard").innerHTML = ""; if (ioOpener && ioOpener.focus) ioOpener.focus(); ioOpener = null; }
+$("ioDialog").addEventListener("pointerdown", (ev) => { if (ev.target === $("ioDialog")) closeIo(); });
+addEventListener("keydown", (ev) => { if (ev.key === "Escape" && ioIsOpen()) closeIo(); });
+
+function openExport() {
+  const n = Object.keys(model.entities).length, r = model.relations.length, dl = canDownload();
+  const acts = (k) => `<div class="acts">${dl ? `<button class="btn small primary" data-dl="${k}"${n ? "" : " disabled"}>Download</button>` : ""}<button class="btn small${dl ? "" : " primary"}" data-cp="${k}"${n ? "" : " disabled"}>Copy</button></div>`;
+  const c = openIo(`
+    <h2 id="ioTitle">Export</h2>
+    <p class="hint">${n ? `“${esc(model.name)}”: ${n} thing${n === 1 ? "" : "s"} and ${r} relation${r === 1 ? "" : "s"}.${proposals.length ? " Proposals still waiting for approval are left out." : ""}` : "This ontology is empty, so there is nothing to export yet."}</p>
+    <div class="fmt"><b>Ontograph file</b><span>Everything, as JSON. This is the one to import back in later.</span>${acts("json")}</div>
+    <div class="fmt"><b>OWL / Turtle</b><span>For ontology tools. It imports back too, but JSON is the exact copy.</span>${acts("ttl")}</div>
+    ${dl ? "" : `<p class="hint">Downloads aren't available in this view. Copy the text and paste it into a file, or into Import later.</p>`}
+    <div class="row"><button class="btn small" id="ioClose">Close</button></div>`);
+  const make = (k) => (k === "json" ? { name: fileBase() + ".json", data: exportJson() } : { name: fileBase() + ".ttl.txt", data: toTurtle() });
+  c.querySelectorAll("[data-dl]").forEach((b) => (b.onclick = async () => { const f = make(b.dataset.dl); if (await download(f.name, f.data)) logLine(`Exported ${b.dataset.dl === "json" ? "the Ontograph file" : "Turtle"}`, "note"); }));
+  c.querySelectorAll("[data-cp]").forEach((b) => (b.onclick = () => copyText(make(b.dataset.cp).data, b)));
+  (c.querySelector("[data-dl]:not(:disabled), [data-cp]:not(:disabled)") || $("ioClose")).focus();
+}
+function openImport(message) {
+  const c = openIo(`
+    <h2 id="ioTitle">Import</h2>
+    <p class="hint">Open an Ontograph file (.json) you exported, or a Turtle file. It opens as a new ontology; the one you have open is not changed.${proposals.length ? " Proposals waiting for approval will be dropped." : ""}</p>
+    <div class="drop" id="ioDrop"><button class="btn small primary" id="ioPick">Choose a file</button><span class="hint">or drop one anywhere on the page</span></div>
+    <textarea id="ioPaste" placeholder="Or paste the JSON or Turtle text here" aria-label="Paste JSON or Turtle text" spellcheck="false"></textarea>
+    <p class="err" id="ioErr" role="alert" hidden></p>
+    <div class="row"><button class="btn small" id="ioClose">Cancel</button><button class="btn small primary" id="ioGo">Import pasted text</button></div>`);
+  $("ioPick").onclick = () => { $("importFile").value = ""; $("importFile").click(); };
+  $("ioGo").onclick = () => importText($("ioPaste").value);
+  if (message) ioError(message);
+  $("ioPick").focus();
+}
+function ioError(message) { if (!ioIsOpen() || !$("ioErr")) openImport(); const e = $("ioErr"); e.hidden = false; e.textContent = message; }
+async function importText(text) {
+  let M;
+  try { M = parseImport(text); } catch (e) { ioError((e && e.message) || "That file couldn't be read."); return false; }
+  if (ioIsOpen()) closeIo();
+  await openImported(M);
+  return true;
+}
+async function importFile(file) {
+  if (!file) return false;
+  if (file.size > IMPORT_MAX_BYTES) { ioError("That file is over 8 MB, which is more than this page will import."); return false; }
+  let text; try { text = await file.text(); } catch (e) { ioError("That file couldn't be opened."); return false; }
+  return importText(text);
+}
+$("importFile").onchange = () => importFile($("importFile").files[0]);
+const dragHasFile = (ev) => !!ev.dataTransfer && [...ev.dataTransfer.types].includes("Files");
+addEventListener("dragover", (ev) => { if (!dragHasFile(ev)) return; ev.preventDefault(); const d = $("ioDrop"); if (d) d.classList.add("over"); });
+addEventListener("dragleave", () => { const d = $("ioDrop"); if (d) d.classList.remove("over"); });
+addEventListener("drop", (ev) => { if (!dragHasFile(ev)) return; ev.preventDefault(); const d = $("ioDrop"); if (d) d.classList.remove("over"); importFile(ev.dataTransfer.files[0]); });
+
+/* explicit save and delete */
+async function saveNow() {
+  const btn = $("saveBtn");
+  if (!currentMapId && !Object.keys(model.entities).length) { logLine("Nothing to save yet", "note"); return; }
+  clearTimeout(saveTimer); isExample = false; dirty = true; await save();
+  const ok = /^Saved/.test($("saveState").textContent);
+  btn.textContent = ok ? "Saved" : "Not saved"; setTimeout(() => (btn.textContent = "Save"), 1400);
+  logLine(ok ? (cap.db && uid ? "Saved to your account" : "Saved in this browser") : "Couldn't save. Export a copy to be safe.", "note");
+}
+$("saveBtn").onclick = saveNow;
+$("exportBtn").onclick = openExport;
+$("importBtn").onclick = () => openImport();
+$("deleteBtn").onclick = async () => {
+  const id = currentMapId; if (!id || saving) return;
+  if (!(await confirmBox(`Delete the saved ontology “${model.name}”? This can't be undone. Export it first if you want a copy.`))) return;
+  try {
+    clearTimeout(saveTimer); dirty = false;
+    if (cap.db && uid) await cap.db.collection("data/users/" + uid).doc(id).delete();
+    else { const all = readLocal(); delete all[id]; localStorage.setItem("ontograph.maps", JSON.stringify(all)); }
+    mapsList = mapsList.filter((m) => m.id !== id);
+    showModel(blank(), null); setSave("Deleted. This is a new, empty ontology"); logLine("Deleted the saved ontology", "note");
+  } catch (e) { setSave("Couldn't delete that ontology"); }
+};
+addEventListener("keydown", (ev) => { if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && ev.key.toLowerCase() === "s") { ev.preventDefault(); saveNow(); } });
+
+/* ---------------- Boot ---------------- */
+$("mapName").value = model.name;
+syncGraph();
+setTimeout(fit, 2200);
+document.fonts && document.fonts.ready.then(() => {
+  for (const n of nodeMap.values()) if (n.__obj) { const l = n.__obj.userData.label; l.fontFace = l.fontFace; sizeNode(n, n.__obj); }
+  for (const l of linkMap.values()) { const tag = l.__tube && l.__tube.userData.tag; if (tag) tag.fontFace = tag.fontFace; }
+  const lf = Graph.d3Force("link"); lf.distance(lf.distance()); Graph.d3ReheatSimulation();
+});
+setTheme(theme, true);
+renderMapSelect();
+
+(async () => {
+  const [sample, dictation, db, user, downloads] = await Promise.all(["sample", "dictation", "db", "user", "downloads"].map(use));
+  Object.assign(cap, { sample, dictation, db, user, downloads });
+  if (!dictation) {
+    $("mic").disabled = true; $("mic").style.opacity = 0.4;
+    setMic("idle", isStandalone() ? "voice needs the hosted page in Claude" : "voice needs Chrome, Edge or the Claude desktop app");
+    if (isStandalone()) {
+      showVoiceNotice("Standalone copy. Voice and typed sentences need Claude, so new things can only be added on the hosted page. Exploring, editing, saving, import and export all work here.");
+      $("typeInput").placeholder = "Type a command, e.g. focus on hospital"; $("typeInput").setAttribute("aria-label", "Type a command"); $("typeForm").querySelector("button").textContent = "Run";
+    }
+  } else {
+    dictation.onState(({ state, reason }) => {
+      if (state === "listening") lastHeard = performance.now();
+      const why = state === "listening" ? "" : autoStopped ? "stopped after 3 seconds of silence" : reason === "hidden" ? "paused while the page was hidden" : "";
+      setMic(state === "listening" ? "listening" : "idle", why);
+      if (state !== "listening") { showPartial(""); autoStopped = false; }
+    });
+    dictation.onPartial(({ text }) => { lastHeard = performance.now(); showPartial(text); });
+    dictation.onFinal(({ text }) => { lastHeard = performance.now(); showPartial(""); enqueue(text); });
+    // stop listening after 3 seconds with no speech
+    setInterval(() => {
+      if (!listening || autoStopped) return;
+      const quiet = performance.now() - lastHeard;
+      if (quiet > 3000) { autoStopped = true; stopDictation(); }
+      else if (quiet > 1500) $("micState").querySelector("span").textContent = `stopping in ${Math.ceil((3000 - quiet) / 1000)}…`;
+      else $("micState").querySelector("span").textContent = "stops after 3 seconds of silence";
+    }, 250);
+  }
+  if (!sample && window.claude) showVoiceNotice("Claude isn't available for this view, so new speech can't be structured.", true);
+  toggleDownloads();
+  if (db && user) { try { uid = await user.id(); } catch { uid = null; } }
+  if (db && uid) {
+    const loadTimer = setTimeout(() => { if (!listLoaded) setSave("Saved ontologies can't be reached yet"); }, 10000);
+    db.collection("data/users/" + uid).orderBy("updatedAt", "desc").limit(50).onSnapshot((snap) => {
+      clearTimeout(loadTimer);
+      mapsList = snap.docs.map((d) => { const b = d.data() || {}; return { id: d.id, name: b.name, updatedAt: b.updatedAt || 0 }; });
+      renderMapSelect();
+      if (!listLoaded) { listLoaded = true; if (isExample && !dirty && mapsList.length) loadMap(mapsList[0].id); }
+    }, () => { clearTimeout(loadTimer); setSave("Saving is unavailable here; export to keep your work"); });
+  } else {
+    const all = readLocal();
+    mapsList = Object.entries(all).map(([id, m]) => ({ id, name: m.name, updatedAt: m.updatedAt })).sort((a, b) => b.updatedAt - a.updatedAt);
+    renderMapSelect();
+    if (isExample && mapsList.length) loadMap(mapsList[0].id);
+  }
+})();
+
+window.__onto = { Graph, setTheme, fit, exportJson, parseImport, importText, saveNow, commit, applyOps, toTurtle, get model() { return model; }, get view() { return view; }, get proposals() { return proposals; }, propose, approve, reject, toggleItem, localCommand, setView, select };
+})();
+</script>
+</body>
+</html>
